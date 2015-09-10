@@ -1,6 +1,7 @@
 """MC1-P1: Analyze a portfolio."""
 
 import pandas as pd
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 from collections import OrderedDict
@@ -22,6 +23,11 @@ def get_portfolio_value(prices, allocs, start_val=1):
         port_val: daily portfolio value
     """
     # TODO: Your code here
+    normed = prices / prices.ix[0, :]
+    alloced = normed * allocs
+    pos_vals = alloced * start_val
+    port_val = pos_vals.sum(axis=1)
+
     return port_val
 
 
@@ -42,6 +48,15 @@ def get_portfolio_stats(port_val, daily_rf=0, samples_per_year=252):
         sharpe_ratio: annualized Sharpe ratio
     """
     # TODO: Your code here
+
+    daily_ret = (port_val / port_val.shift(1)) - 1
+    daily_ret.ix[0] = 0
+    daily_ret = daily_ret[1:]
+    avg_daily_ret = daily_ret.mean()
+    std_daily_ret = daily_ret.std()
+    cum_ret = (port_val[-1] / port_val[0]) - 1
+    sharpe_ratio = math.sqrt(samples_per_year) * ((avg_daily_ret - daily_rf) / std_daily_ret)
+
     return cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio
 
 
@@ -55,7 +70,9 @@ def plot_normalized_data(df, title="Normalized prices", xlabel="Date", ylabel="N
         xlabel: X-axis label
         ylabel: Y-axis label
     """
-    #TODO: Your code here
+    # TODO: Your code here
+    df = df / df.ix[0, :]
+    plot_data(df, title, xlabel, ylabel)
 
 
 def assess_portfolio(start_date, end_date, symbols, allocs, start_val=1):
@@ -68,7 +85,7 @@ def assess_portfolio(start_date, end_date, symbols, allocs, start_val=1):
 
     # Get daily portfolio value
     port_val = get_portfolio_value(prices, allocs, start_val)
-    #plot_data(port_val, title="Daily Portfolio Value")
+    plot_data(port_val, title="Daily Portfolio Value")
 
     # Get portfolio statistics (note: std_daily_ret = volatility)
     cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(port_val)
@@ -91,14 +108,14 @@ def assess_portfolio(start_date, end_date, symbols, allocs, start_val=1):
 def test_run():
     """Driver function."""
     # Define input parameters
-    start_date = '2010-01-01'
+    start_date = '2010-06-01'
     end_date = '2010-12-31'
 
-    symbol_allocations = OrderedDict([('GOOG', 0.2), ('AAPL', 0.3), ('GLD', 0.4), ('XOM', 0.1)])  # symbols and corresponding allocations
+    symbol_allocations = OrderedDict([('GOOG', 0.2), ('AAPL', 0.2), ('GLD', 0.4), ('XOM', 0.2)])  # symbols and corresponding allocations
     #symbol_allocations = OrderedDict([('AXP', 0.0), ('HPQ', 0.0), ('IBM', 0.0), ('HNZ', 1.0)])  # allocations from wiki example
 
     symbols = symbol_allocations.keys()  # list of symbols, e.g.: ['GOOG', 'AAPL', 'GLD', 'XOM']
-    allocs = symbol_allocations.values()  # list of allocations, e.g.: [0.2, 0.3, 0.4, 0.1]
+    allocs = symbol_allocations.values()  # list of allocations, e.g.: [0.2, 0.2, 0.4, 0.2]
     start_val = 1000000  # starting value of portfolio
 
     # Assess the portfolio
