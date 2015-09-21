@@ -17,6 +17,7 @@ def find_sharpe_ratio(allocs, prices):
 
     return -sharpe_ratio
 
+
 def find_optimal_allocations(prices):
     """Find optimal allocations for a stock portfolio, optimizing for Sharpe ratio.
 
