@@ -45,7 +45,7 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
     prices_df = prices_all[symbols]  # only portfolio symbols
     prices_df['Cash'] = 1.0
     pd.set_option('display.max_rows', len(prices_df))
-    #print prices_df
+    # print prices_df
     count_df = pd.DataFrame(index=prices_df.index, columns=symbols)
     count_df = count_df.fillna(0)
 
@@ -90,14 +90,30 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
                     shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
         leverage = (longs + shorts)/(longs - shorts + value)
         leverage_df.ix[date_index] = leverage
-        if leverage > 2:
+        if leverage > 2.0:
+            longs = 0
+            shorts = 0
             # print "Raise Alert"
             # print date_index, leverage, temp_value
             for i in range(0, len(symbols_sum), 1):
                 symbols_sum[i] -= count_df.ix[date_index, symbols[i]]
-            count_df.ix[date_index] = 0
-            cash_df.ix[date_index] = temp_value
-            value = temp_value
+
+            for i in range(0, len(symbols_sum), 1):
+                if symbols_sum[i] > 0:
+                    longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
+                if symbols_sum[i] < 0:
+                    shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
+            previous_leverage = (longs + shorts)/(longs - shorts + value)
+
+            # print leverage, previous_leverage
+            if leverage > previous_leverage > 2.0:
+                leverage_df.ix[date_index] = previous_leverage
+                cash_df.ix[date_index] = value
+                temp_value = value
+            else:
+                count_df.ix[date_index] = 0
+                cash_df.ix[date_index] = temp_value
+                value = temp_value
         else:
             cash_df.ix[date_index] = value
             temp_value = value
@@ -217,13 +233,15 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     return count_df
 
 
-def test_run():
-    ordersFile = os.path.join('orders', 'leverageTest1.csv')
-    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
-    ordersFile = os.path.join('orders', 'leverageTest2.csv')
-    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
-    ordersFile = os.path.join('orders', 'leverageTest3.csv')
-    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+# def test_run():
+#     ordersFile = os.path.join('orders', 'leverageTest1.csv')
+#     leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+#     ordersFile = os.path.join('orders', 'leverageTest2.csv')
+#     leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+#     ordersFile = os.path.join('orders', 'leverageTest3.csv')
+#     leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+#     ordersFile = os.path.join('orders', 'leverageTest4.csv')
+#     leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
 
 
 def leo_tester(startDate, endDate, ordersFile, resultsFile=None):
@@ -260,6 +278,9 @@ def leo_tester(startDate, endDate, ordersFile, resultsFile=None):
         testVsAnswer(portvals, ansFile, ordersFile)
     elif ordersFile == os.path.join('orders', 'leverageTest3.csv'):
         ansFile = os.path.join('orders', 'leverageTest3_ans.csv')
+        testVsAnswer(portvals, ansFile, ordersFile)
+    elif ordersFile == os.path.join('orders', 'leverageTest4.csv'):
+        ansFile = os.path.join('orders', 'leverageTest4_ans.csv')
         testVsAnswer(portvals, ansFile, ordersFile)
 
 def testVsAnswer(portvals, ansFile, ordersFile):
@@ -299,48 +320,48 @@ def testVsAnswer(portvals, ansFile, ordersFile):
     return None
 
 
-# def test_run():
-#     """Driver function."""
-#     # Define input parameters
-#     start_date = '2011-01-14'
-#     end_date = '2011-12-14'
-#     orders_file = os.path.join("orders", "orders2.csv")
-#     start_val = 1000000
-#     # Process orders
-#     # portvals = compute_portvals(start_date, end_date, orders_file, start_val)
-#     portvals = compute_portvals_leverage(start_date, end_date, orders_file, start_val)
-#     if isinstance(portvals, pd.DataFrame):
-#         portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
-#
-#     #Get portfolio stats
-#     cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
-#
-#     #Simulate a $SPX-only reference portfolio to get stats
-#     prices_SPX = get_data(['$SPX'], pd.date_range(start_date, end_date))
-#     prices_SPX = prices_SPX[['$SPX']]  # remove SPY
-#     portvals_SPX = get_portfolio_value(prices_SPX, [1.0])
-#     cum_ret_SPX, avg_daily_ret_SPX, std_daily_ret_SPX, sharpe_ratio_SPX = get_portfolio_stats(portvals_SPX)
-#
-#     # Compare portfolio against $SPX
-#     print "Data Range: {} to {}".format(start_date, end_date)
-#     print
-#     print "Sharpe Ratio of Fund: {}".format(sharpe_ratio)
-#     print "Sharpe Ratio of $SPX: {}".format(sharpe_ratio_SPX)
-#     print
-#     print "Cumulative Return of Fund: {}".format(cum_ret)
-#     print "Cumulative Return of $SPX: {}".format(cum_ret_SPX)
-#     print
-#     print "Standard Deviation of Fund: {}".format(std_daily_ret)
-#     print "Standard Deviation of $SPX: {}".format(std_daily_ret_SPX)
-#     print
-#     print "Average Daily Return of Fund: {}".format(avg_daily_ret)
-#     print "Average Daily Return of $SPX: {}".format(avg_daily_ret_SPX)
-#     print
-#     print "Final Portfolio Value: {}".format(portvals[-1])
-#
-#     # Plot computed daily portfolio value
-#     # df_temp = pd.concat([portvals, prices_SPX['$SPX']], keys=['Portfolio', '$SPX'], axis=1)
-#     # plot_normalized_data(df_temp, title="Daily portfolio value and $SPX")
+def test_run():
+    """Driver function."""
+    # Define input parameters
+    start_date = '2011-01-14'
+    end_date = '2011-12-14'
+    orders_file = os.path.join("orders", "orders2.csv")
+    start_val = 1000000
+    # Process orders
+    # portvals = compute_portvals(start_date, end_date, orders_file, start_val)
+    portvals = compute_portvals_leverage(start_date, end_date, orders_file, start_val)
+    if isinstance(portvals, pd.DataFrame):
+        portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
+
+    #Get portfolio stats
+    cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
+
+    #Simulate a $SPX-only reference portfolio to get stats
+    prices_SPX = get_data(['$SPX'], pd.date_range(start_date, end_date))
+    prices_SPX = prices_SPX[['$SPX']]  # remove SPY
+    portvals_SPX = get_portfolio_value(prices_SPX, [1.0])
+    cum_ret_SPX, avg_daily_ret_SPX, std_daily_ret_SPX, sharpe_ratio_SPX = get_portfolio_stats(portvals_SPX)
+
+    # Compare portfolio against $SPX
+    print "Data Range: {} to {}".format(start_date, end_date)
+    print
+    print "Sharpe Ratio of Fund: {}".format(sharpe_ratio)
+    print "Sharpe Ratio of $SPX: {}".format(sharpe_ratio_SPX)
+    print
+    print "Cumulative Return of Fund: {}".format(cum_ret)
+    print "Cumulative Return of $SPX: {}".format(cum_ret_SPX)
+    print
+    print "Standard Deviation of Fund: {}".format(std_daily_ret)
+    print "Standard Deviation of $SPX: {}".format(std_daily_ret_SPX)
+    print
+    print "Average Daily Return of Fund: {}".format(avg_daily_ret)
+    print "Average Daily Return of $SPX: {}".format(avg_daily_ret_SPX)
+    print
+    print "Final Portfolio Value: {}".format(portvals[-1])
+
+    # Plot computed daily portfolio value
+    # df_temp = pd.concat([portvals, prices_SPX['$SPX']], keys=['Portfolio', '$SPX'], axis=1)
+    # plot_normalized_data(df_temp, title="Daily portfolio value and $SPX")
 
 
 if __name__ == "__main__":
