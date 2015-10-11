@@ -84,9 +84,9 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
                 symbols_sum[i] += count_df.ix[date_index, symbols[i]]
                 # print date_index, symbols_sum[i]
                 value += -(prices_df.ix[date_index, symbols[i]] * count_df.ix[date_index, symbols[i]])
-                if count_df.ix[date_index, symbols[i]] > 0:
+                if symbols_sum[i] > 0:
                     longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
-                if count_df.ix[date_index, symbols[i]] < 0:
+                if symbols_sum[i] < 0:
                     shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
         leverage = (longs + shorts)/(longs - shorts + value)
         leverage_df.ix[date_index] = leverage
@@ -218,10 +218,10 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
 
 
 def test_run():
-    # ordersFile = os.path.join('orders', 'leverageTest1.csv')
-    # leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
-    # ordersFile = os.path.join('orders', 'leverageTest2.csv')
-    # leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+    ordersFile = os.path.join('orders', 'leverageTest1.csv')
+    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+    ordersFile = os.path.join('orders', 'leverageTest2.csv')
+    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
     ordersFile = os.path.join('orders', 'leverageTest3.csv')
     leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
 
@@ -288,8 +288,8 @@ def testVsAnswer(portvals, ansFile, ordersFile):
         portvals.plot(ax=ax, linestyle='--', label='user', color='r')
         ax.set_title('Test for %s' % ordersFile)
         ax.legend()
-        from matplotlib import pyplot as plt
-        plt.show()
+        # from matplotlib import pyplot as plt
+        # plt.show()
         try:
             np.testing.assert_array_almost_equal(portvals.values, ansSeries.values, decimal=4)
             print '****** SUCCESS!  CONGRATULATIONS! *******'
@@ -302,9 +302,9 @@ def testVsAnswer(portvals, ansFile, ordersFile):
 # def test_run():
 #     """Driver function."""
 #     # Define input parameters
-#     start_date = '2011-01-05'
-#     end_date = '2011-01-20'
-#     orders_file = os.path.join("orders", "orders-short.csv")
+#     start_date = '2011-01-14'
+#     end_date = '2011-12-14'
+#     orders_file = os.path.join("orders", "orders2.csv")
 #     start_val = 1000000
 #     # Process orders
 #     # portvals = compute_portvals(start_date, end_date, orders_file, start_val)
