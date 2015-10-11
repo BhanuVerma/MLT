@@ -44,7 +44,8 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
     prices_all = get_data(symbols, dates)  # automatically adds SPY
     prices_df = prices_all[symbols]  # only portfolio symbols
     prices_df['Cash'] = 1.0
-
+    pd.set_option('display.max_rows', len(prices_df))
+    #print prices_df
     count_df = pd.DataFrame(index=prices_df.index, columns=symbols)
     count_df = count_df.fillna(0)
 
@@ -71,23 +72,29 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
 
     value = start_val
 
+    symbols_sum = []
+    for i in range(len(symbols)):
+        symbols_sum.append(0)
+
     for date_index, row in count_df.iterrows():
         longs = 0
         shorts = 0
         for i in range(0, len(row), 1):
             if date_index in count_df.index and date_index in prices_df.index:
-                # print date_index, row[0]
+                symbols_sum[i] += count_df.ix[date_index, symbols[i]]
+                # print date_index, symbols_sum[i]
                 value += -(prices_df.ix[date_index, symbols[i]] * count_df.ix[date_index, symbols[i]])
                 if count_df.ix[date_index, symbols[i]] > 0:
-                    longs += (prices_df.ix[date_index, symbols[i]] * count_df.ix[date_index, symbols[i]])
+                    longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
                 if count_df.ix[date_index, symbols[i]] < 0:
-                    shorts += abs((prices_df.ix[date_index, symbols[i]] * count_df.ix[date_index, symbols[i]]))
+                    shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
         leverage = (longs + shorts)/(longs - shorts + value)
         leverage_df.ix[date_index] = leverage
         if leverage > 2:
             # print "Raise Alert"
-            # print leverage
-            # print temp_value
+            # print date_index, leverage, temp_value
+            for i in range(0, len(symbols_sum), 1):
+                symbols_sum[i] -= count_df.ix[date_index, symbols[i]]
             count_df.ix[date_index] = 0
             cash_df.ix[date_index] = temp_value
             value = temp_value
@@ -99,6 +106,7 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
     count_df['Leverage'] = leverage_df
 
     # print
+    pd.set_option('display.max_rows', len(count_df))
     # print count_df
     # print
     # find cumulative sum
@@ -116,6 +124,8 @@ def compute_portvals_leverage(start_date, end_date, orders_file, start_val):
     columns = columns[-1:] + columns[:-1]
     count_df = count_df[columns]
 
+    pd.set_option('display.max_rows', len(count_df['Sum']))
+    # print count_df['Sum']
     return count_df
 
 
@@ -208,12 +218,12 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
 
 
 def test_run():
-    ordersFile = os.path.join('orders', 'leverageTest1.csv')
-    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
-    #ordersFile = os.path.join('orders', 'leverageTest2.csv')
-    #leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
-    # ordersFile = os.path.join('orders', 'leverageTest3.csv')
+    # ordersFile = os.path.join('orders', 'leverageTest1.csv')
     # leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+    # ordersFile = os.path.join('orders', 'leverageTest2.csv')
+    # leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
+    ordersFile = os.path.join('orders', 'leverageTest3.csv')
+    leo_tester(startDate='2011-01-03', endDate='2011-12-14', ordersFile=ordersFile)
 
 
 def leo_tester(startDate, endDate, ordersFile, resultsFile=None):
@@ -241,7 +251,7 @@ def leo_tester(startDate, endDate, ordersFile, resultsFile=None):
     if resultsFile is not None:
         portvals.to_csv(resultsFile)
 
-    #check answers
+    # check answers
     if ordersFile == os.path.join('orders', 'leverageTest1.csv'):
         ansFile = os.path.join('orders', 'leverageTest1_ans.csv')
         testVsAnswer(portvals, ansFile, ordersFile)
