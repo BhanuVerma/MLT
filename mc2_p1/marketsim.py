@@ -86,7 +86,6 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     columns = columns[-1:] + columns[:-1]
     count_df = count_df[columns]
 
-    # print count_df['Sum']
     return count_df
 
 
