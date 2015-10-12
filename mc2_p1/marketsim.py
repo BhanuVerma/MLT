@@ -335,10 +335,10 @@ def test_run():
     if isinstance(portvals, pd.DataFrame):
         portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
 
-    #Get portfolio stats
+    # Get portfolio stats
     cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
 
-    #Simulate a $SPX-only reference portfolio to get stats
+    # Simulate a $SPX-only reference portfolio to get stats
     prices_SPX = get_data(['$SPX'], pd.date_range(start_date, end_date))
     prices_SPX = prices_SPX[['$SPX']]  # remove SPY
     portvals_SPX = get_portfolio_value(prices_SPX, [1.0])
