@@ -1,6 +1,7 @@
 """MC2-P1: Market simulator."""
 
 import pandas as pd
+import numpy as np
 import os
 import csv
 
@@ -43,7 +44,7 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     prices_all = get_data(symbols, dates)  # automatically adds SPY
     prices_df = prices_all[symbols]  # only portfolio symbols
     prices_df['Cash'] = 1.0
-    pd.set_option('display.max_rows', len(prices_df))
+    # pd.set_option('display.max_rows', len(prices_df))
     # print prices_df
     count_df = pd.DataFrame(index=prices_df.index, columns=symbols)
     count_df = count_df.fillna(0)
@@ -121,7 +122,7 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     count_df['Leverage'] = leverage_df
 
     # print
-    pd.set_option('display.max_rows', len(count_df))
+    # pd.set_option('display.max_rows', len(count_df))
     # print count_df
     # print
     # find cumulative sum
@@ -139,7 +140,7 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     columns = columns[-1:] + columns[:-1]
     count_df = count_df[columns]
 
-    pd.set_option('display.max_rows', len(count_df['Sum']))
+    # pd.set_option('display.max_rows', len(count_df['Sum']))
     # print count_df['Sum']
     return count_df
 
@@ -261,7 +262,7 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
 #     '''
 #     start_val = 1000000
 #     # Process orders
-#     portvals = compute_portvals_leverage(startDate, endDate, ordersFile, start_val)
+#     portvals = compute_portvals(startDate, endDate, ordersFile, start_val)
 #     if isinstance(portvals, pd.DataFrame):
 #         portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
 #     # Get portfolio stats
@@ -283,6 +284,7 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
 #     elif ordersFile == os.path.join('orders', 'leverageTest4.csv'):
 #         ansFile = os.path.join('orders', 'leverageTest4_ans.csv')
 #         testVsAnswer(portvals, ansFile, ordersFile)
+
 
 # def testVsAnswer(portvals, ansFile, ordersFile):
 #     ''' Testing file for individual answers, tries to tell you what you got wrong
