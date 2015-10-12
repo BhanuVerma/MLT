@@ -1,4 +1,5 @@
 """MC2-P1: Market simulator."""
+# __author__ = "Bhanu Verma"
 
 import pandas as pd
 import numpy as np
