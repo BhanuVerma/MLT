@@ -20,7 +20,7 @@ def get_portfolio_value(prices, allocs, start_val=1):
     -------
         port_val: daily portfolio value
     """
-    # TODO: Your code here
+
     normed = prices / prices.ix[0, :]
     alloced = normed * allocs
     pos_vals = alloced * start_val
