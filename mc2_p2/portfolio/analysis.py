@@ -2,6 +2,8 @@
 
 import pandas as pd
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 from collections import OrderedDict
 
 from util import get_data, plot_data
@@ -110,6 +112,7 @@ def test_run():
     end_date = '2010-12-31'
 
     symbol_allocations = OrderedDict([('GOOG', 0.2), ('AAPL', 0.2), ('GLD', 0.4), ('XOM', 0.2)])  # symbols and corresponding allocations
+    #symbol_allocations = OrderedDict([('AXP', 0.0), ('HPQ', 0.0), ('IBM', 0.0), ('HNZ', 1.0)])  # allocations from wiki example
 
     symbols = symbol_allocations.keys()  # list of symbols, e.g.: ['GOOG', 'AAPL', 'GLD', 'XOM']
     allocs = symbol_allocations.values()  # list of allocations, e.g.: [0.2, 0.2, 0.4, 0.2]
