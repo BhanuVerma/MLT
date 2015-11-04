@@ -198,23 +198,34 @@ def test_run():
     # Define input parameters
     start_date = '2007-12-31'
     end_date = '2009-12-31'
+    dates = pd.date_range(start_date, end_date)
 
     # Simulate a $SPX-only reference portfolio to get stats
     data = get_data(['IBM'], pd.date_range(start_date, end_date))
     data = data[['IBM']]  # remove SPY by choosing IBM
+
+    prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
+    prices_SPY = prices_SPY[['SPY']]
+
     data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
-    data['STD'] = pd.rolling_std(data['IBM'], window=20)
-    data['HigherBand'] = data['SMA'] + 2*data['STD']
-    data['LowerBand'] = data['SMA'] - 2*data['STD']
-    data['Points'] = (data['IBM'] - data['SMA'])/(2*data['STD'])
+    data['Momentum'] = 0
     pd.set_option('display.max_rows', len(data))
 
+    row_count = 0
+    date_array = []
+
+    for index, row in data.iterrows():
+        date_array.append(index)
+        if row_count >= 10:
+            data.loc[index, 'Momentum'] = data.loc[index, 'IBM']/data.loc[date_array[row_count-10], 'IBM'] - 1
+        row_count += 1
+
+    # data['avg_momentum'] = pd.rolling_mean(data['Momentum'], window=20)
+    # print data
     plot.figure()
     ax = plot.gca()
     data['IBM'].plot(label='IBM', ax=ax, color='b')
     data['SMA'].plot(label='SMA', ax=ax, color='y')
-    data['HigherBand'].plot(label='Bollinger Bands', ax=ax, color='cyan')
-    data['LowerBand'].plot(label='', ax=ax, color='cyan')
     ax.legend(loc='best')
 
     count = 0
@@ -225,42 +236,27 @@ def test_run():
     data_array = [('Date', 'Symbol', 'Order', 'Shares')]
 
     for index, row in data.iterrows():
-        current = row.values[5]
-        price = row.values[0]
+        current = row.values[0]
         avg = row.values[1]
-
+        momentum = row.values[2]
         if count == 0:
-            last = row.values[5]
+            last = row.values[0]
 
-        if not short_flag and not long_flag:
-            if last > 1.0 >= current:
-                # print "short entry"
-                line_count += 1
-                plot.axvline(index, color='red')
-                short_flag = True
-                data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-            elif current >= -1.0 > last:
-                # print "long entry"
-                line_count += 1
-                plot.axvline(index, color='green')
-                long_flag = True
-                data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+        if last > avg >= current:
+            # print "short entry"
+            # print momentum
+            line_count += 1
+            plot.axvline(index, color='red')
+            short_flag = True
+            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
+        elif current >= avg > last:
+            # print "long entry"
+            # print momentum
+            line_count += 1
+            plot.axvline(index, color='green')
+            long_flag = True
+            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
 
-        if short_flag or long_flag:
-            if short_flag:
-                if price <= avg:
-                    line_count += 1
-                    plot.axvline(index, color='black')
-                    short_flag = False
-                    long_flag = False
-                    data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-            if long_flag:
-                if price >= avg:
-                    line_count += 1
-                    plot.axvline(index, color='black')
-                    short_flag = False
-                    long_flag = False
-                    data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
         count += 1
         last = current
