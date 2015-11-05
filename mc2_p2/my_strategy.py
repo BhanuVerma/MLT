@@ -103,8 +103,6 @@ def get_portfolio_stats(port_val, daily_rf=0, samples_per_year=252):
     return cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio
 
 
-# THIS FUNCTION WOULD NOT PASS THE LEVERAGE TEST CASES
-
 def compute_portvals(start_date, end_date, orders_file, start_val):
     """Compute daily portfolio value given a sequence of orders in a CSV file.
 
@@ -140,12 +138,16 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     prices_all = get_data(symbols, dates)  # automatically adds SPY
     prices_df = prices_all[symbols]  # only portfolio symbols
     prices_df['Cash'] = 1.0
-
+    # pd.set_option('display.max_rows', len(prices_df))
+    # print prices_df
     count_df = pd.DataFrame(index=prices_df.index, columns=symbols)
     count_df = count_df.fillna(0)
 
     cash_df = pd.DataFrame(index=prices_df.index, columns=['Cash_Value'])
     cash_df = cash_df.fillna(start_val)
+
+    leverage_df = pd.DataFrame(index=prices_df.index, columns=['Leverage'])
+    leverage_df = leverage_df.fillna(0)
 
     # populate dataframes
     reader = csv.reader(open(orders_file, 'rU'), delimiter=',')
@@ -163,20 +165,62 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
         i += 1
 
     value = start_val
+
+    symbols_sum = []
+    for i in range(len(symbols)):
+        symbols_sum.append(0)
+
     for date_index, row in count_df.iterrows():
+        longs = 0
+        shorts = 0
         for i in range(0, len(row), 1):
             if date_index in count_df.index and date_index in prices_df.index:
+                symbols_sum[i] += count_df.ix[date_index, symbols[i]]
+                # print date_index, symbols_sum[i]
                 value += -(prices_df.ix[date_index, symbols[i]] * count_df.ix[date_index, symbols[i]])
-        cash_df.ix[date_index] = value
+                if symbols_sum[i] > 0:
+                    longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
+                if symbols_sum[i] < 0:
+                    shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
+        leverage = (longs + shorts)/(longs - shorts + value)
+        leverage_df.ix[date_index] = leverage
+        if leverage > 2.0:
+            longs = 0
+            shorts = 0
+            # print "Raise Alert"
+            # print date_index, leverage, temp_value
+            for i in range(0, len(symbols_sum), 1):
+                symbols_sum[i] -= count_df.ix[date_index, symbols[i]]
+
+            for i in range(0, len(symbols_sum), 1):
+                if symbols_sum[i] > 0:
+                    longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
+                if symbols_sum[i] < 0:
+                    shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
+            previous_leverage = (longs + shorts)/(longs - shorts + value)
+
+            # print leverage, previous_leverage
+            if leverage > previous_leverage > 2.0:
+                leverage_df.ix[date_index] = previous_leverage
+                cash_df.ix[date_index] = value
+                temp_value = value
+            else:
+                count_df.ix[date_index] = 0
+                cash_df.ix[date_index] = temp_value
+                value = temp_value
+        else:
+            cash_df.ix[date_index] = value
+            temp_value = value
 
     count_df['Cash'] = cash_df
+    count_df['Leverage'] = leverage_df
 
-    # print prices_df
     # print
+    # pd.set_option('display.max_rows', len(count_df))
     # print count_df
     # print
     # find cumulative sum
-    for i in range(0, len(count_df.columns)-1, 1):
+    for i in range(0, len(symbols), 1):
         count_df[symbols[i]] = count_df[symbols[i]].cumsum()
     # print count_df
     # print
@@ -190,7 +234,35 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     columns = columns[-1:] + columns[:-1]
     count_df = count_df[columns]
 
+    # pd.set_option('display.max_rows', len(count_df['Sum']))
+    # print count_df['Sum']
     return count_df
+
+
+def get_profit_average(data_list, window):
+    temp_list = []
+
+    for i in data_list:
+        if i > 0:
+            temp_list.append(i)
+
+    if len(temp_list) > 0:
+        return reduce(lambda x, y: x + y, temp_list) / window
+    else:
+        return 0.0
+
+
+def get_loss_average(data_list, window):
+    temp_list = []
+
+    for i in data_list:
+        if i < 0:
+            temp_list.append(i)
+
+    if len(temp_list) > 0:
+        return abs(reduce(lambda x, y: x + y, temp_list) / window)
+    else:
+        return 0.0
 
 
 def test_run():
@@ -198,68 +270,73 @@ def test_run():
     # Define input parameters
     start_date = '2007-12-31'
     end_date = '2009-12-31'
-    dates = pd.date_range(start_date, end_date)
 
     # Simulate a $SPX-only reference portfolio to get stats
     data = get_data(['IBM'], pd.date_range(start_date, end_date))
     data = data[['IBM']]  # remove SPY by choosing IBM
-
-    prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
-    prices_SPY = prices_SPY[['SPY']]
-
-    data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
-    data['Momentum'] = 0
+    data['RSI'] = 0
+    # data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
+    # data['STD'] = pd.rolling_std(data['IBM'], window=20)
+    # data['HigherBand'] = data['SMA'] + 2*data['STD']
+    # data['LowerBand'] = data['SMA'] - 2*data['STD']
+    # data['Points'] = (data['IBM'] - data['SMA'])/(2*data['STD'])
     pd.set_option('display.max_rows', len(data))
 
-    row_count = 0
-    date_array = []
-
-    for index, row in data.iterrows():
-        date_array.append(index)
-        if row_count >= 10:
-            data.loc[index, 'Momentum'] = data.loc[index, 'IBM']/data.loc[date_array[row_count-10], 'IBM'] - 1
-        row_count += 1
-
-    # data['avg_momentum'] = pd.rolling_mean(data['Momentum'], window=20)
-    # print data
     plot.figure()
     ax = plot.gca()
     data['IBM'].plot(label='IBM', ax=ax, color='b')
-    data['SMA'].plot(label='SMA', ax=ax, color='y')
+    # data['SMA'].plot(label='SMA', ax=ax, color='y')
+    # data['HigherBand'].plot(label='Bollinger Bands', ax=ax, color='cyan')
+    # data['LowerBand'].plot(label='', ax=ax, color='cyan')
     ax.legend(loc='best')
 
     count = 0
+    last = 0
     line_count = 0
-    short_flag = False
-    long_flag = False
+    window = 14
 
     data_array = [('Date', 'Symbol', 'Order', 'Shares')]
+    queue = []
 
     for index, row in data.iterrows():
-        current = row.values[0]
-        avg = row.values[1]
-        momentum = row.values[2]
+        price = row.values[0]
+
         if count == 0:
             last = row.values[0]
 
-        if last > avg >= current:
-            # print "short entry"
-            # print momentum
-            line_count += 1
-            plot.axvline(index, color='red')
-            short_flag = True
-            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-        elif current >= avg > last:
-            # print "long entry"
-            # print momentum
-            line_count += 1
-            plot.axvline(index, color='green')
-            long_flag = True
-            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-
+        diff = price - last
+        if count < window:
+            queue.append(diff)
+        else:
+            queue.append(diff)
+            del queue[0]
+            relative_strength = get_profit_average(queue, window) / get_loss_average(queue, window)
+            print relative_strength
+            rel_strength_index = 100.0 - (100.0/(1 + relative_strength))
+            # print rel_strength_index, relative_strength
+            data.loc[index, 'RSI'] = rel_strength_index
 
         count += 1
-        last = current
+        last = price
+
+    print data
+    last_rsi = 0
+    for index, row in data.iterrows():
+        rsi = data['RSI'][index]
+
+        if rsi <= 70 < last_rsi:
+            # print "short entry"
+            line_count += 1
+            plot.axvline(index, color='red')
+            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
+        elif rsi >= 30 > last_rsi:
+            # print "long entry"
+            line_count += 1
+            plot.axvline(index, color='green')
+            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+
+        last_rsi = rsi
+        count += 1
 
     with open('orders.csv', 'w') as fp:
         data_writer = csv.writer(fp, delimiter=',')
@@ -303,6 +380,7 @@ def test_run():
     # Plot computed daily portfolio value
     df_temp = pd.concat([portvals, prices_SPY['SPY']], keys=['Portfolio', 'SPY'], axis=1)
     plot_normalized_data(df_temp, title="Daily portfolio value and SPY")
+
 
 if __name__ == "__main__":
     test_run()
