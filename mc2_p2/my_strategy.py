@@ -565,13 +565,13 @@ def test_run():
             last = row.values[7]
             last_middle = row.values[8]
 
-        if not short_flag and not long_flag and not short_flag_middle and not long_flag_middle:
-            if last > 1.0 >= current:
-                # print "short entry"
-                line_count += 1
-                plot.axvline(index, color='red')
-                short_flag = True
-                data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
+        if not short_flag_middle and not long_flag_middle:
+            # if last > 1.0 >= current:
+            #     # print "short entry"
+            #     line_count += 1
+            #     plot.axvline(index, color='red')
+            #     short_flag = True
+            #     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
             if last_middle > -1.0 >= current_middle:
                 # print "short entry"
@@ -580,12 +580,12 @@ def test_run():
                 short_flag_middle = True
                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
-            if current >= -1.0 > last:
-                # print "long entry"
-                line_count += 1
-                plot.axvline(index, color='green')
-                long_flag = True
-                data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+            # if current >= -1.0 > last:
+            #     # print "long entry"
+            #     line_count += 1
+            #     plot.axvline(index, color='green')
+            #     long_flag = True
+            #     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
 
             if last_middle < 1.0 <= current_middle:
                 # print "long entry"
@@ -594,21 +594,21 @@ def test_run():
                 long_flag_middle = True
                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
 
-        if short_flag or long_flag:
-            if short_flag:
-                if price <= avg:
-                    line_count += 1
-                    plot.axvline(index, color='black')
-                    short_flag = False
-                    long_flag = False
-                    data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-            if long_flag:
-                if price >= avg:
-                    line_count += 1
-                    plot.axvline(index, color='black')
-                    short_flag = False
-                    long_flag = False
-                    data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
+        # if short_flag or long_flag:
+        #     if short_flag:
+        #         if price <= avg:
+        #             line_count += 1
+        #             plot.axvline(index, color='black')
+        #             short_flag = False
+        #             long_flag = False
+        #             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+        #     if long_flag:
+        #         if price >= avg:
+        #             line_count += 1
+        #             plot.axvline(index, color='black')
+        #             short_flag = False
+        #             long_flag = False
+        #             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
         if short_flag_middle or long_flag_middle:
             if short_flag_middle:
