@@ -273,9 +273,9 @@ def test_run():
     data_array = [('Date', 'Symbol', 'Order', 'Shares')]
 
     for index, row in data.iterrows():
-        current = row.values[5]
-        price = row.values[0]
-        avg = row.values[1]
+        current = data.loc[index, 'Points']
+        price = data.loc[index, 'IBM']
+        avg = data.loc[index, 'SMA']
 
         if count == 0:
             last = row.values[5]
