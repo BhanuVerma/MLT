@@ -265,6 +265,8 @@ def get_loss_average(data_list, window):
         return 0.0
 
 
+# Bollinger Values
+
 def test_run():
     """Driver function."""
     # Define input parameters
@@ -272,14 +274,24 @@ def test_run():
     end_date = '2009-12-31'
 
     # Simulate a $SPX-only reference portfolio to get stats
+    prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
+    prices_SPY = prices_SPY[['SPY']]
+
     data = get_data(['IBM'], pd.date_range(start_date, end_date))
     data = data[['IBM']]  # remove SPY by choosing IBM
-    data['RSI'] = 0
-    # data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
-    # data['STD'] = pd.rolling_std(data['IBM'], window=20)
-    # data['HigherBand'] = data['SMA'] + 2*data['STD']
-    # data['LowerBand'] = data['SMA'] - 2*data['STD']
-    # data['Points'] = (data['IBM'] - data['SMA'])/(2*data['STD'])
+    data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
+    data['STD'] = pd.rolling_std(data['IBM'], window=20)
+    data['HigherBand'] = data['SMA'] + 2*data['STD']
+    data['LowerBand'] = data['SMA'] - 2*data['STD']
+    data['Points_IBM'] = 2*(data['IBM'] - data['SMA'])/(data['HigherBand'] - data['LowerBand'])
+
+    data['SMA_SPY'] = pd.rolling_mean(prices_SPY['SPY'], window=20)
+    data['STD_SPY'] = pd.rolling_std(prices_SPY['SPY'], window=20)
+    data['HigherBand_SPY'] = data['SMA_SPY'] + 2*data['STD_SPY']
+    data['LowerBand_SPY'] = data['SMA_SPY'] - 2*data['STD_SPY']
+    data['Points_SPY'] = 2*(prices_SPY['SPY'] - data['SMA_SPY'])/(data['HigherBand_SPY'] - data['LowerBand_SPY'])
+    data['diff'] = data['Points_IBM'] - data['Points_SPY']
+
     pd.set_option('display.max_rows', len(data))
 
     plot.figure()
@@ -291,52 +303,51 @@ def test_run():
     ax.legend(loc='best')
 
     count = 0
-    last = 0
     line_count = 0
-    window = 14
+    short_flag = False
+    long_flag = False
 
     data_array = [('Date', 'Symbol', 'Order', 'Shares')]
-    queue = []
+    threshold = 0.5
 
     for index, row in data.iterrows():
-        price = row.values[0]
+        diff = row.values[11]
 
         if count == 0:
-            last = row.values[0]
+            last = row.values[11]
 
-        diff = price - last
-        if count < window:
-            queue.append(diff)
-        else:
-            queue.append(diff)
-            del queue[0]
-            relative_strength = get_profit_average(queue, window) / get_loss_average(queue, window)
-            print relative_strength
-            rel_strength_index = 100.0 - (100.0/(1 + relative_strength))
-            # print rel_strength_index, relative_strength
-            data.loc[index, 'RSI'] = rel_strength_index
+        if not short_flag and not long_flag:
+            if last <= threshold < diff:
+                # print "short entry"
+                line_count += 1
+                plot.axvline(index, color='red')
+                short_flag = True
+                data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
+            elif last >= -threshold > diff:
+                # print "long entry"
+                line_count += 1
+                plot.axvline(index, color='green')
+                long_flag = True
+                data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+
+        if short_flag or long_flag:
+            if short_flag:
+                if diff <= 0:
+                    line_count += 1
+                    plot.axvline(index, color='black')
+                    short_flag = False
+                    long_flag = False
+                    data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+            if long_flag:
+                if diff >= 0:
+                    line_count += 1
+                    plot.axvline(index, color='black')
+                    short_flag = False
+                    long_flag = False
+                    data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
         count += 1
-        last = price
-
-    print data
-    last_rsi = 0
-    for index, row in data.iterrows():
-        rsi = data['RSI'][index]
-
-        if rsi <= 85 < last_rsi:
-            # print "short entry"
-            line_count += 1
-            plot.axvline(index, color='red')
-            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-        elif rsi >= 20 > last_rsi:
-            # print "long entry"
-            line_count += 1
-            plot.axvline(index, color='green')
-            data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-
-        last_rsi = rsi
-        count += 1
+        last = diff
 
     with open('orders.csv', 'w') as fp:
         data_writer = csv.writer(fp, delimiter=',')
@@ -355,8 +366,6 @@ def test_run():
     cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
 
     # Simulate a $SPX-only reference portfolio to get stats
-    prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
-    prices_SPY = prices_SPY[['SPY']]
     portvals_SPY = get_portfolio_value(prices_SPY, [1.0])
     cum_ret_SPY, avg_daily_ret_SPY, std_daily_ret_SPY, sharpe_ratio_SPY = get_portfolio_stats(portvals_SPY)
 
@@ -380,6 +389,125 @@ def test_run():
     # Plot computed daily portfolio value
     df_temp = pd.concat([portvals, prices_SPY['SPY']], keys=['Portfolio', 'SPY'], axis=1)
     plot_normalized_data(df_temp, title="Daily portfolio value and SPY")
+
+
+# RSI
+
+# def test_run():
+#     """Driver function."""
+#     # Define input parameters
+#     start_date = '2007-12-31'
+#     end_date = '2009-12-31'
+#
+#     # Simulate a $SPX-only reference portfolio to get stats
+#     data = get_data(['IBM'], pd.date_range(start_date, end_date))
+#     data = data[['IBM']]  # remove SPY by choosing IBM
+#     data['RSI'] = 0
+#     # data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
+#     # data['STD'] = pd.rolling_std(data['IBM'], window=20)
+#     # data['HigherBand'] = data['SMA'] + 2*data['STD']
+#     # data['LowerBand'] = data['SMA'] - 2*data['STD']
+#     # data['Points'] = (data['IBM'] - data['SMA'])/(2*data['STD'])
+#     pd.set_option('display.max_rows', len(data))
+#
+#     plot.figure()
+#     ax = plot.gca()
+#     data['IBM'].plot(label='IBM', ax=ax, color='b')
+#     # data['SMA'].plot(label='SMA', ax=ax, color='y')
+#     # data['HigherBand'].plot(label='Bollinger Bands', ax=ax, color='cyan')
+#     # data['LowerBand'].plot(label='', ax=ax, color='cyan')
+#     ax.legend(loc='best')
+#
+#     count = 0
+#     last = 0
+#     line_count = 0
+#     window = 14
+#
+#     data_array = [('Date', 'Symbol', 'Order', 'Shares')]
+#     queue = []
+#
+#     for index, row in data.iterrows():
+#         price = row.values[0]
+#
+#         if count == 0:
+#             last = row.values[0]
+#
+#         diff = price - last
+#         if count < window:
+#             queue.append(diff)
+#         else:
+#             queue.append(diff)
+#             del queue[0]
+#             relative_strength = get_profit_average(queue, window) / get_loss_average(queue, window)
+#             print relative_strength
+#             rel_strength_index = 100.0 - (100.0/(1 + relative_strength))
+#             # print rel_strength_index, relative_strength
+#             data.loc[index, 'RSI'] = rel_strength_index
+#
+#         count += 1
+#         last = price
+#
+#     print data
+#     last_rsi = 0
+#     for index, row in data.iterrows():
+#         rsi = data['RSI'][index]
+#
+#         if rsi <= 85 < last_rsi:
+#             # print "short entry"
+#             line_count += 1
+#             plot.axvline(index, color='red')
+#             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
+#         elif rsi >= 20 > last_rsi:
+#             # print "long entry"
+#             line_count += 1
+#             plot.axvline(index, color='green')
+#             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
+#
+#         last_rsi = rsi
+#         count += 1
+#
+#     with open('orders.csv', 'w') as fp:
+#         data_writer = csv.writer(fp, delimiter=',')
+#         data_writer.writerows(data_array)
+#
+#     plot.show()
+#
+#     orders_file = os.path.join("", "orders.csv")
+#     start_val = 10000
+#     # Process orders
+#     portvals = compute_portvals(start_date, end_date, orders_file, start_val)
+#     if isinstance(portvals, pd.DataFrame):
+#         portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
+#
+#     # Get portfolio stats
+#     cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
+#
+#     # Simulate a $SPX-only reference portfolio to get stats
+#     prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
+#     prices_SPY = prices_SPY[['SPY']]
+#     portvals_SPY = get_portfolio_value(prices_SPY, [1.0])
+#     cum_ret_SPY, avg_daily_ret_SPY, std_daily_ret_SPY, sharpe_ratio_SPY = get_portfolio_stats(portvals_SPY)
+#
+#     # Compare portfolio against $SPX
+#     print "Data Range: {} to {}".format(start_date, end_date)
+#     print
+#     print "Sharpe Ratio of Fund: {}".format(sharpe_ratio)
+#     print "Sharpe Ratio of SPY: {}".format(sharpe_ratio_SPY)
+#     print
+#     print "Cumulative Return of Fund: {}".format(cum_ret)
+#     print "Cumulative Return of SPY: {}".format(cum_ret_SPY)
+#     print
+#     print "Standard Deviation of Fund: {}".format(std_daily_ret)
+#     print "Standard Deviation of SPY: {}".format(std_daily_ret_SPY)
+#     print
+#     print "Average Daily Return of Fund: {}".format(avg_daily_ret)
+#     print "Average Daily Return of SPY: {}".format(avg_daily_ret_SPY)
+#     print
+#     print "Final Portfolio Value: {}".format(portvals[-1])
+#
+#     # Plot computed daily portfolio value
+#     df_temp = pd.concat([portvals, prices_SPY['SPY']], keys=['Portfolio', 'SPY'], axis=1)
+#     plot_normalized_data(df_temp, title="Daily portfolio value and SPY")
 
 
 if __name__ == "__main__":
