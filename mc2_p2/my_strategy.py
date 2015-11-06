@@ -528,12 +528,10 @@ def test_run():
     data = data[['IBM']]  # remove SPY by choosing IBM
     data['SMA'] = pd.rolling_mean(data['IBM'], window=20)
     data['STD'] = pd.rolling_std(data['IBM'], window=20)
-    data['HigherBand'] = data['SMA'] + 2*data['STD']
-    data['LowerBand'] = data['SMA'] - 2*data['STD']
-    data['MiddleHigherBand'] = data['SMA'] + 1*data['STD']
-    data['MiddleLowerBand'] = data['SMA'] - 1*data['STD']
-    data['Points_2'] = (data['IBM'] - data['SMA'])/(2*data['STD'])
-    data['Points_1'] = (data['IBM'] - data['SMA'])/(1*data['STD'])
+    data['HigherBand'] = data['SMA'] + (2 * data['STD'])
+    data['LowerBand'] = data['SMA'] - (2 * data['STD'])
+    data['MiddleHigherBand'] = data['SMA'] + (1 * data['STD'])
+    data['MiddleLowerBand'] = data['SMA'] - (1 * data['STD'])
     pd.set_option('display.max_rows', len(data))
 
     plot.figure()
@@ -550,84 +548,53 @@ def test_run():
     line_count = 0
     short_flag = False
     long_flag = False
-    short_flag_middle = False
-    long_flag_middle = False
 
     data_array = [('Date', 'Symbol', 'Order', 'Shares')]
 
     for index, row in data.iterrows():
-        current = row.values[7]
-        current_middle = row.values[8]
-        price = row.values[0]
-        avg = row.values[1]
+        current_price = data.loc[index, 'IBM']
+        higher_2 = data.loc[index, 'HigherBand']
+        lower_2 = data.loc[index, 'LowerBand']
+        higher_1 = data.loc[index, 'MiddleHigherBand']
+        lower_1 = data.loc[index, 'MiddleLowerBand']
 
         if count == 0:
-            last = row.values[7]
-            last_middle = row.values[8]
+            last = current_price
 
-        if not short_flag_middle and not long_flag_middle:
-            # if last > 1.0 >= current:
-            #     # print "short entry"
-            #     line_count += 1
-            #     plot.axvline(index, color='red')
-            #     short_flag = True
-            #     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-
-            if last_middle > -1.0 >= current_middle:
+        if not short_flag and not long_flag:
+            if last > lower_1 >= current_price:
                 # print "short entry"
                 line_count += 1
                 plot.axvline(index, color='red')
-                short_flag_middle = True
+                short_flag = True
                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
-            # if current >= -1.0 > last:
-            #     # print "long entry"
-            #     line_count += 1
-            #     plot.axvline(index, color='green')
-            #     long_flag = True
-            #     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-
-            if last_middle < 1.0 <= current_middle:
+            if last < higher_1 <= current_price:
                 # print "long entry"
                 line_count += 1
                 plot.axvline(index, color='green')
-                long_flag_middle = True
+                long_flag = True
                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
 
-        # if short_flag or long_flag:
-        #     if short_flag:
-        #         if price <= avg:
-        #             line_count += 1
-        #             plot.axvline(index, color='black')
-        #             short_flag = False
-        #             long_flag = False
-        #             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-        #     if long_flag:
-        #         if price >= avg:
-        #             line_count += 1
-        #             plot.axvline(index, color='black')
-        #             short_flag = False
-        #             long_flag = False
-        #             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-
-        if short_flag_middle or long_flag_middle:
-            if short_flag_middle:
-                if last > -1.0 >= current:
+        if short_flag or long_flag:
+            if short_flag:
+                if current_price <= lower_2:
+                    # exit for short entry
                     line_count += 1
                     plot.axvline(index, color='black')
-                    short_flag_middle = False
-                    long_flag_middle = False
+                    short_flag = False
+                    long_flag = False
                     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-            if long_flag_middle:
-                if last < 1.0 <= current:
+            if long_flag:
+                if current_price >= higher_2:
+                    # exit for long entry
                     line_count += 1
                     plot.axvline(index, color='black')
-                    short_flag_middle = False
-                    long_flag_middle = False
+                    short_flag = False
+                    long_flag = False
                     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
         count += 1
-        last = current
-        last_middle = current_middle
+        last = current_price
 
     with open('orders.csv', 'w') as fp:
         data_writer = csv.writer(fp, delimiter=',')

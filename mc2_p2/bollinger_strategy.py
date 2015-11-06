@@ -140,12 +140,16 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     prices_all = get_data(symbols, dates)  # automatically adds SPY
     prices_df = prices_all[symbols]  # only portfolio symbols
     prices_df['Cash'] = 1.0
-
+    # pd.set_option('display.max_rows', len(prices_df))
+    # print prices_df
     count_df = pd.DataFrame(index=prices_df.index, columns=symbols)
     count_df = count_df.fillna(0)
 
     cash_df = pd.DataFrame(index=prices_df.index, columns=['Cash_Value'])
     cash_df = cash_df.fillna(start_val)
+
+    leverage_df = pd.DataFrame(index=prices_df.index, columns=['Leverage'])
+    leverage_df = leverage_df.fillna(0)
 
     # populate dataframes
     reader = csv.reader(open(orders_file, 'rU'), delimiter=',')
@@ -163,20 +167,62 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
         i += 1
 
     value = start_val
+
+    symbols_sum = []
+    for i in range(len(symbols)):
+        symbols_sum.append(0)
+
     for date_index, row in count_df.iterrows():
+        longs = 0
+        shorts = 0
         for i in range(0, len(row), 1):
             if date_index in count_df.index and date_index in prices_df.index:
+                symbols_sum[i] += count_df.ix[date_index, symbols[i]]
+                # print date_index, symbols_sum[i]
                 value += -(prices_df.ix[date_index, symbols[i]] * count_df.ix[date_index, symbols[i]])
-        cash_df.ix[date_index] = value
+                if symbols_sum[i] > 0:
+                    longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
+                if symbols_sum[i] < 0:
+                    shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
+        leverage = (longs + shorts)/(longs - shorts + value)
+        leverage_df.ix[date_index] = leverage
+        if leverage > 2.0:
+            longs = 0
+            shorts = 0
+            # print "Raise Alert"
+            # print date_index, leverage, temp_value
+            for i in range(0, len(symbols_sum), 1):
+                symbols_sum[i] -= count_df.ix[date_index, symbols[i]]
+
+            for i in range(0, len(symbols_sum), 1):
+                if symbols_sum[i] > 0:
+                    longs += (prices_df.ix[date_index, symbols[i]] * symbols_sum[i])
+                if symbols_sum[i] < 0:
+                    shorts += abs((prices_df.ix[date_index, symbols[i]] * symbols_sum[i]))
+            previous_leverage = (longs + shorts)/(longs - shorts + value)
+
+            # print leverage, previous_leverage
+            if leverage > previous_leverage > 2.0:
+                leverage_df.ix[date_index] = previous_leverage
+                cash_df.ix[date_index] = value
+                temp_value = value
+            else:
+                count_df.ix[date_index] = 0
+                cash_df.ix[date_index] = temp_value
+                value = temp_value
+        else:
+            cash_df.ix[date_index] = value
+            temp_value = value
 
     count_df['Cash'] = cash_df
+    count_df['Leverage'] = leverage_df
 
-    # print prices_df
     # print
+    # pd.set_option('display.max_rows', len(count_df))
     # print count_df
     # print
     # find cumulative sum
-    for i in range(0, len(count_df.columns)-1, 1):
+    for i in range(0, len(symbols), 1):
         count_df[symbols[i]] = count_df[symbols[i]].cumsum()
     # print count_df
     # print
@@ -190,6 +236,8 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     columns = columns[-1:] + columns[:-1]
     count_df = count_df[columns]
 
+    # pd.set_option('display.max_rows', len(count_df['Sum']))
+    # print count_df['Sum']
     return count_df
 
 
