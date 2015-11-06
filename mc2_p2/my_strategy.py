@@ -324,12 +324,12 @@ def test_run():
     for index, row in data.iterrows():
         rsi = data['RSI'][index]
 
-        if rsi <= 70 < last_rsi:
+        if rsi <= 85 < last_rsi:
             # print "short entry"
             line_count += 1
             plot.axvline(index, color='red')
             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-        elif rsi >= 30 > last_rsi:
+        elif rsi >= 20 > last_rsi:
             # print "long entry"
             line_count += 1
             plot.axvline(index, color='green')
