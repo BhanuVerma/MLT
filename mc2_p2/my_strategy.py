@@ -532,6 +532,8 @@ def test_run():
     data['LowerBand'] = data['SMA'] - (2 * data['STD'])
     data['MiddleHigherBand'] = data['SMA'] + (1 * data['STD'])
     data['MiddleLowerBand'] = data['SMA'] - (1 * data['STD'])
+    data['Percentage'] = (data['IBM'] - data['SMA'])/(2*data['STD'])
+    data['PercentageMiddle'] = (data['IBM'] - data['SMA'])/(1*data['STD'])
     pd.set_option('display.max_rows', len(data))
 
     plot.figure()
@@ -555,21 +557,20 @@ def test_run():
         current_price = data.loc[index, 'IBM']
         higher_2 = data.loc[index, 'HigherBand']
         lower_2 = data.loc[index, 'LowerBand']
-        higher_1 = data.loc[index, 'MiddleHigherBand']
-        lower_1 = data.loc[index, 'MiddleLowerBand']
+        current_val = data.loc[index, 'PercentageMiddle']
 
         if count == 0:
-            last = current_price
+            last = current_val
 
         if not short_flag and not long_flag:
-            if last > lower_1 >= current_price:
+            if last > -1.0 >= current_val:
                 # print "short entry"
                 line_count += 1
                 plot.axvline(index, color='red')
                 short_flag = True
                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
 
-            if last < higher_1 <= current_price:
+            if last < 1.0 <= current_val:
                 # print "long entry"
                 line_count += 1
                 plot.axvline(index, color='green')
@@ -594,7 +595,7 @@ def test_run():
                     long_flag = False
                     data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
         count += 1
-        last = current_price
+        last = current_val
 
     with open('orders.csv', 'w') as fp:
         data_writer = csv.writer(fp, delimiter=',')
