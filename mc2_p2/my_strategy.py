@@ -538,11 +538,14 @@ def test_run():
 
     plot.figure()
     ax = plot.gca()
+    ax.set_title('Double Bollinger Bands')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price')
     data['IBM'].plot(label='IBM', ax=ax, color='b')
     data['SMA'].plot(label='SMA', ax=ax, color='y')
-    data['HigherBand'].plot(label='Bollinger Bands', ax=ax, color='cyan')
+    data['HigherBand'].plot(label='Bollinger Bands for 2 SD', ax=ax, color='cyan')
     data['LowerBand'].plot(label='', ax=ax, color='cyan')
-    data['MiddleHigherBand'].plot(label='Middle Bollinger Bands', ax=ax, color='magenta')
+    data['MiddleHigherBand'].plot(label='Bollinger Bands for 1 SD', ax=ax, color='magenta')
     data['MiddleLowerBand'].plot(label='', ax=ax, color='magenta')
     ax.legend(loc='best')
 

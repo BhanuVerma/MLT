@@ -259,6 +259,9 @@ def test_run():
 
     plot.figure()
     ax = plot.gca()
+    ax.set_title('Bollinger Bands')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price')
     data['IBM'].plot(label='IBM', ax=ax, color='b')
     data['SMA'].plot(label='SMA', ax=ax, color='y')
     data['HigherBand'].plot(label='Bollinger Bands', ax=ax, color='cyan')
