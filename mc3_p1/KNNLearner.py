@@ -8,6 +8,8 @@ import numpy as np
 class KNNLearner(object):
     def __init__(self, k):
         self.n_n = k
+        self.x_data = None
+        self.y_data = None
 
     def addEvidence(self, dataX, dataY):
         """
@@ -19,7 +21,6 @@ class KNNLearner(object):
         self.x_data = dataX
         self.y_data = dataY
 
-
     def query(self, points):
         """
         @summary: Estimate a set of test points given the model we built.
@@ -30,7 +31,7 @@ class KNNLearner(object):
         result_y = np.zeros(row_count)
         for count in range(row_count):
             a = points[count]
-            euc_dist = np.sqrt(((a - self.x_data)**2).sum(axis=1))
+            euc_dist = np.sqrt(((a - self.x_data) ** 2).sum(axis=1))
             sorted_indices = euc_dist.argsort()
             n_neighbours = sorted_indices[:self.n_n]
             nearest_y = [self.y_data[index] for index in n_neighbours]
