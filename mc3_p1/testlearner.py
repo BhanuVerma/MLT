@@ -22,26 +22,36 @@ if __name__ == "__main__":
     testX = data[train_rows:, 0:-1]
     testY = data[train_rows:, -1]
 
-    # create a learner and train it
-    # learner = lrl.LinRegLearner()  # create a LinRegLearner
-    # learner = knn.KNNLearner(k=3)
-    learner = bl.BagLearner(learner=knn.KNNLearner, kwargs={"k": 3}, bags=20, boost=False)
-    learner.addEvidence(trainX, trainY)  # train it
+    total = 3
 
-    # evaluate in sample
-    predY = learner.query(trainX)  # get the predictions
-    rmse = math.sqrt(((trainY - predY) ** 2).sum()/trainY.shape[0])
-    print
-    print "In sample results"
-    print "RMSE: ", rmse
-    c = np.corrcoef(predY, y=trainY)
-    print "corr: ", c[0, 1]
+    for i in range(total):
+        if i == 0:
+            print "LinRegLearner"
+            learner = lrl.LinRegLearner()  # create a LinRegLearner
+        elif i == 1:
+            print "KNNLearner"
+            learner = knn.KNNLearner(k=3)  # create a KNNLearner
+        else:
+            print "BagLearner"
+            learner = bl.BagLearner(learner=knn.KNNLearner, kwargs={"k": 3}, bags=20, boost=False)  # create a BagLearner
 
-    # evaluate out of sample
-    predY = learner.query(testX)  # get the predictions
-    rmse = math.sqrt(((testY - predY) ** 2).sum()/testY.shape[0])
-    print
-    print "Out of sample results"
-    print "RMSE: ", rmse
-    c = np.corrcoef(predY, y=testY)
-    print "corr: ", c[0, 1]
+        learner.addEvidence(trainX, trainY)  # train it
+
+        # evaluate in sample
+        predY = learner.query(trainX)  # get the predictions
+        rmse = math.sqrt(((trainY - predY) ** 2).sum()/trainY.shape[0])
+        print
+        print "In sample results"
+        print "RMSE: ", rmse
+        c = np.corrcoef(predY, y=trainY)
+        print "corr: ", c[0, 1]
+
+        # evaluate out of sample
+        predY = learner.query(testX)  # get the predictions
+        rmse = math.sqrt(((testY - predY) ** 2).sum()/testY.shape[0])
+        print
+        print "Out of sample results"
+        print "RMSE: ", rmse
+        c = np.corrcoef(predY, y=testY)
+        print "corr: ", c[0, 1]
+        print
