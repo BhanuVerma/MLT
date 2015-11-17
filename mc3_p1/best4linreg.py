@@ -6,6 +6,8 @@ import numpy as np
 import math
 import LinRegLearner as lrl
 import KNNLearner as knn
+import csv
+
 
 if __name__ == "__main__":
 
@@ -26,6 +28,13 @@ if __name__ == "__main__":
     x3_data += x3_noise
 
     y_data = x1_data * 10 + x2_data * 9 + x3_data * 8
+
+    data = np.dstack((x1_data, x2_data, x3_data, y_data))
+
+    with open('best4linreg.csv', 'w') as fp:
+        writer = csv.writer(fp, delimiter=',')
+        for row in data:
+            writer.writerows(row)
 
     trainX = np.ones((train_length, 3))
     trainX[:, 0] = x1_data[0:train_length]
