@@ -1,27 +1,44 @@
 """
-Test a learner.  (c) 2015 Bhanu Verma
+best4linreg  (c) 2015 Bhanu Verma
 """
 
 import numpy as np
 import math
 import LinRegLearner as lrl
 import KNNLearner as knn
-import BagLearner as bl
 
-if __name__=="__main__":
-    datax1 = np.random.exponential(scale=1.0, size=3000)
-    datax2 = np.random.exponential(scale=1.0, size=3000)
-    datay = datax1 * np.random.rand() + datax2 * np.random.rand()
+if __name__ == "__main__":
 
-    trainX = np.empty((1800, 2))
-    trainX[:, 0] = datax1[0:1800]
-    trainX[:, 1] = datax2[0:1800]
-    trainY = datay[0:1800]
+    total = 3000
+    train_length = 0.6 * total
+    test_length = total - train_length
 
-    testX = np.empty((1200, 2))
-    testX[:, 0] = datax1[1800:3000]
-    testX[:, 1] = datax2[1800:3000]
-    testY = datay[1800:3000]
+    x1_data = np.random.random_sample([total])
+    x1_noise = np.random.random_sample([total])
+    x1_data += x1_noise
+
+    x2_data = np.random.random_sample([total])
+    x2_noise = np.random.random_sample([total])
+    x2_data += x2_noise
+
+    x3_data = np.random.random_sample([total])
+    x3_noise = np.random.random_sample([total])
+    x3_data += x3_noise
+
+    y_data = x1_data * 10 + x2_data * 9 + x3_data * 8
+
+    trainX = np.ones((train_length, 3))
+    trainX[:, 0] = x1_data[0:train_length]
+    trainX[:, 1] = x2_data[0:train_length]
+    trainX[:, 2] = x3_data[0:train_length]
+    trainY = y_data[0:train_length]
+
+    testX = np.ones((test_length, 3))
+    testX[:, 0] = x1_data[train_length:total]
+    testX[:, 1] = x2_data[train_length:total]
+    testX[:, 2] = x3_data[train_length:total]
+
+    testY = y_data[train_length:total]
 
     total = 2
 
@@ -37,7 +54,7 @@ if __name__=="__main__":
 
         # evaluate in sample
         predY = learner.query(trainX)  # get the predictions
-        rmse = math.sqrt(((trainY - predY) ** 2).sum()/trainY.shape[0])
+        rmse = math.sqrt(((trainY - predY) ** 2).sum() / trainY.shape[0])
         print
         print "In sample results"
         print "RMSE: ", rmse
@@ -46,7 +63,7 @@ if __name__=="__main__":
 
         # evaluate out of sample
         predY = learner.query(testX)  # get the predictions
-        rmse = math.sqrt(((testY - predY) ** 2).sum()/testY.shape[0])
+        rmse = math.sqrt(((testY - predY) ** 2).sum() / testY.shape[0])
         print
         print "Out of sample results"
         print "RMSE: ", rmse

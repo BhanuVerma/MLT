@@ -1,14 +1,13 @@
 """
-Test a learner.  (c) 2015 Bhanu Verma
+best4KNN.  (c) 2015 Bhanu Verma
 """
 
 import numpy as np
 import math
 import LinRegLearner as lrl
 import KNNLearner as knn
-import BagLearner as bl
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     total = 3000
     train_length = 0.6 * total
@@ -26,7 +25,7 @@ if __name__=="__main__":
     x3_noise = np.random.random_sample([total])
     x3_data += x3_noise
 
-    y_data = x1_data ** 3 + x2_data ** 2 + x3_data * 1
+    y_data = x1_data ** 4 + x2_data ** 3 + x3_data ** 2
 
     trainX = np.ones((train_length, 3))
     trainX[:, 0] = x1_data[0:train_length]
@@ -55,7 +54,7 @@ if __name__=="__main__":
 
         # evaluate in sample
         predY = learner.query(trainX)  # get the predictions
-        rmse = math.sqrt(((trainY - predY) ** 2).sum()/trainY.shape[0])
+        rmse = math.sqrt(((trainY - predY) ** 2).sum() / trainY.shape[0])
         print
         print "In sample results"
         print "RMSE: ", rmse
@@ -64,7 +63,7 @@ if __name__=="__main__":
 
         # evaluate out of sample
         predY = learner.query(testX)  # get the predictions
-        rmse = math.sqrt(((testY - predY) ** 2).sum()/testY.shape[0])
+        rmse = math.sqrt(((testY - predY) ** 2).sum() / testY.shape[0])
         print
         print "Out of sample results"
         print "RMSE: ", rmse
