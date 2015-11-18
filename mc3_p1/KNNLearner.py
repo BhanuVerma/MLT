@@ -7,6 +7,8 @@ import numpy as np
 
 class KNNLearner(object):
     def __init__(self, k):
+        if k <= 0:
+            k = 3
         self.n_n = k
         self.x_data = None
         self.y_data = None
