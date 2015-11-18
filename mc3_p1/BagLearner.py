@@ -6,7 +6,7 @@ import numpy as np
 
 
 class BagLearner(object):
-    def __init__(self, learner, kwargs, bags, boost):
+    def __init__(self, learner, kwargs, bags=20, boost=False):
         if bags <= 0:
             bags = 20
         if 'k' in kwargs:
