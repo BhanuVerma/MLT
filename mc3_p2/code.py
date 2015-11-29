@@ -5,6 +5,108 @@ import math
 import pandas as pd
 import matplotlib.pyplot as plot
 import csv
+import numpy as np
+
+
+class LinRegLearner(object):
+    def __init__(self):
+        pass  # move along, these aren't the drones you're looking for
+
+    def addEvidence(self, dataX, dataY):
+        """
+        @summary: Add training data to learner
+        @param dataX: X values of data to add
+        @param dataY: the Y training values
+        """
+        # slap on 1s column so linear regression finds a constant term
+        newdataX = np.ones([dataX.shape[0], dataX.shape[1] + 1])
+        newdataX[:, 0:dataX.shape[1]] = dataX
+
+        # build and save the model
+        self.model_coefs, residuals, rank, s = np.linalg.lstsq(newdataX, dataY)
+
+    def query(self, points):
+        """
+        @summary: Estimate a set of test points given the model we built.
+        @param points: should be a numpy array with each row corresponding to a specific query.
+        @returns the estimated values according to the saved model.
+        """
+        return (self.model_coefs[:-1] * points).sum(axis=1) + self.model_coefs[-1]
+
+
+class KNNLearner(object):
+    def __init__(self, k):
+        if k <= 0:
+            k = 3
+        self.n_n = k
+        self.x_data = None
+        self.y_data = None
+
+    def addEvidence(self, dataX, dataY):
+        """
+        @summary: Add training data to learner
+        @param dataX: X values of data to add
+        @param dataY: the Y training values
+        """
+        # load data into class variables
+        self.x_data = dataX
+        self.y_data = dataY
+
+    def query(self, points):
+        """
+        @summary: Estimate a set of test points given the model we built.
+        @param points: should be a numpy array with each row corresponding to a specific query.
+        @returns the estimated values according to the saved model.
+        """
+        row_count, column_count = points.shape
+        result_y = np.zeros(row_count)
+        for count in range(row_count):
+            a = points[count]
+            euc_dist = np.sqrt(((a - self.x_data) ** 2).sum(axis=1))
+            sorted_indices = euc_dist.argsort()
+            n_neighbours = sorted_indices[:self.n_n]
+            nearest_y = [self.y_data[index] for index in n_neighbours]
+            result_y[count] = np.mean(nearest_y)
+
+        return result_y
+
+
+class BagLearner(object):
+    def __init__(self, learner, kwargs, bags=20, boost=False):
+        if bags <= 0:
+            bags = 20
+        if 'k' in kwargs:
+            if kwargs['k'] <= 0:
+                kwargs['k'] = 3
+        else:
+            kwargs['k'] = 3
+        self.learner = learner
+        self.kwargs = kwargs
+        self.bags = bags
+        self.boost = boost
+        self.learners = []
+        for i in range(bags):
+            self.learners.append(learner(**kwargs))
+
+    def addEvidence(self, dataX, dataY):
+        row_count, column_count = dataX.shape
+        count = 0
+        for l in self.learners:
+            sampled_x = np.zeros(dataX.shape)
+            sampled_indices = np.random.randint(0, row_count, size=row_count)
+            for column_index in range(column_count):
+                sampled_x[:, column_index] = np.array([dataX[row_index, column_index] for row_index in sampled_indices])
+            sampled_y = np.array([dataY[row_index] for row_index in sampled_indices])
+            l.addEvidence(sampled_x, sampled_y)
+            count += 1
+
+    def query(self, points):
+        result_y = np.zeros(points.shape[0])
+        for learner in self.learners:
+            temp_result = learner.query(points)
+            result_y = result_y + temp_result
+        result_y /= len(self.learners)
+        return result_y
 
 
 def symbol_to_path(symbol, base_dir=os.path.join("..", "data")):
@@ -269,30 +371,84 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
 def test_run():
     """Driver function."""
     # Define input parameters
-    start_date = '2007-12-3'
-    end_date = '2010-01-8'
-    stock = 'ML4T-399'
-    # Simulate a $SPX-only reference portfolio to get stats
-    data = get_data([stock], pd.date_range(start_date, end_date))
-    data = data[[stock]]  # remove SPY by choosing IBM
-    data['SMA'] = pd.rolling_mean(data[stock], window=20)
-    data['STD'] = pd.rolling_std(data[stock], window=20)
-    data['HigherBand'] = data['SMA'] + (2 * data['STD'])
-    data['LowerBand'] = data['SMA'] - (2 * data['STD'])
-    data['BB'] = (data[stock] - data['SMA'])/(2*data['STD'])
-    data['Momentum'] = (data[stock]/data[stock].shift(5)) - 1.0
-    data['DailyReturns'] = (data[stock]/data[stock].shift(1)) - 1.0
-    data['Volatility'] = pd.rolling_std(data['DailyReturns'], window=20)
-    data['Y'] = (data[stock].shift(-5)/data[stock]) - 1.0
-    del data['SMA']
-    del data['STD']
-    del data['HigherBand']
-    del data['LowerBand']
-    del data['DailyReturns']
-    data = data.ix[20:len(data)-5]
-    pd.set_option('display.max_rows', len(data))
+    # stock_list = ['ML4T-399', 'IBM']
+    k_size = 2
+    bag_size = 20
+    window_size = 10
+    stock_list = ['IBM']
+    for k in range(len(stock_list)):
+        print stock_list[k]
+        for j in range(2):
+            if j == 0:
+                start_date = '2007-12-3'
+                end_date = '2010-01-8'
+            else:
+                start_date = '2009-12-3'
+                end_date = '2011-01-8'
+            stock = stock_list[k]
+            # Simulate a $SPX-only reference portfolio to get stats
+            data = get_data([stock], pd.date_range(start_date, end_date))
+            data = data[[stock]]  # remove SPY by choosing IBM
+            data['SMA'] = pd.rolling_mean(data[stock], window=window_size)
+            data['STD'] = pd.rolling_std(data[stock], window=window_size)
+            data['HigherBand'] = data['SMA'] + (2 * data['STD'])
+            data['LowerBand'] = data['SMA'] - (2 * data['STD'])
+            data['BB'] = (data[stock] - data['SMA'])/(2*data['STD'])
+            data['Momentum'] = (data[stock]/data[stock].shift(5)) - 1.0
+            data['DailyReturns'] = (data[stock]/data[stock].shift(1)) - 1.0
+            data['Volatility'] = pd.rolling_std(data['DailyReturns'], window=window_size)
+            data['Y'] = (data[stock].shift(-5)/data[stock]) - 1.0
+            del data['SMA']
+            del data['STD']
+            del data['HigherBand']
+            del data['LowerBand']
+            del data['DailyReturns']
+            data = data.ix[20:len(data)-5]
+            pd.set_option('display.max_rows', len(data))
+            learner_data = data.ix[:, 1:]
 
-    print data
+            if j == 0:
+                train_x = learner_data.ix[:, 0:-1]
+                train_y = learner_data.ix[:, -1]
+                train_x = train_x.as_matrix()
+                train_y = train_y.as_matrix()
+            else:
+                test_x = learner_data.ix[:, 0:-1]
+                test_y = learner_data.ix[:, -1]
+                test_x = test_x.as_matrix()
+                test_y = test_y.as_matrix()
+
+        total = 2
+
+        for i in range(total):
+            if i == 0:
+                print "LinRegLearner"
+                learner = LinRegLearner()  # create a LinRegLearner
+            else:
+                print "BagLearner"
+                learner = BagLearner(learner=KNNLearner, kwargs={"k": k_size}, bags=bag_size, boost=False)  # create a BagLearner
+
+            learner.addEvidence(train_x, train_y)  # train it
+
+            # evaluate in sample
+            predY = learner.query(train_x)  # get the predictions
+            rmse = math.sqrt(((train_y - predY) ** 2).sum()/train_y.shape[0])
+            print
+            print "In sample results"
+            print "RMSE: ", rmse
+            c = np.corrcoef(predY, y=train_y)
+            print "corr: ", c[0, 1]
+
+            # # evaluate out of sample
+            predY = learner.query(test_x)  # get the predictions
+            rmse = math.sqrt(((test_y - predY) ** 2).sum()/test_y.shape[0])
+            print
+            print "Out of sample results"
+            print "RMSE: ", rmse
+            c = np.corrcoef(predY, y=test_y)
+            print "corr: ", c[0, 1]
+            print
+
     # plot.figure()
     # ax = plot.gca()
     # ax.set_title('Double Bollinger Bands')
