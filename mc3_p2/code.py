@@ -368,14 +368,40 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
     return count_df
 
 
+def get_profit_average(data_list, window):
+    temp_list = []
+
+    for i in data_list:
+        if i > 0:
+            temp_list.append(i)
+
+    if len(temp_list) > 0:
+        return reduce(lambda x, y: x + y, temp_list) / window
+    else:
+        return 0.0
+
+
+def get_loss_average(data_list, window):
+    temp_list = []
+
+    for i in data_list:
+        if i < 0:
+            temp_list.append(i)
+
+    if len(temp_list) > 0:
+        return abs(reduce(lambda x, y: x + y, temp_list) / window)
+    else:
+        return 0.0
+
+
 def test_run():
     """Driver function."""
     # Define input parameters
-    # stock_list = ['ML4T-399', 'IBM']
+    stock_list = ['ML4T-399', 'IBM']
     k_size = 2
     bag_size = 20
-    window_size = 10
-    stock_list = ['IBM']
+    window_size = 20
+    # stock_list = ['IBM']
     for k in range(len(stock_list)):
         print stock_list[k]
         for j in range(2):
@@ -389,6 +415,7 @@ def test_run():
             # Simulate a $SPX-only reference portfolio to get stats
             data = get_data([stock], pd.date_range(start_date, end_date))
             data = data[[stock]]  # remove SPY by choosing IBM
+            data['RSI'] = 0
             data['SMA'] = pd.rolling_mean(data[stock], window=window_size)
             data['STD'] = pd.rolling_std(data[stock], window=window_size)
             data['HigherBand'] = data['SMA'] + (2 * data['STD'])
@@ -397,7 +424,36 @@ def test_run():
             data['Momentum'] = (data[stock]/data[stock].shift(5)) - 1.0
             data['DailyReturns'] = (data[stock]/data[stock].shift(1)) - 1.0
             data['Volatility'] = pd.rolling_std(data['DailyReturns'], window=window_size)
+
+            # Calculate RSI
+            count = 0
+            last = 0
+            window = 14
+            queue = []
+
+            for index, row in data.iterrows():
+                price = row.values[0]
+
+                if count == 0:
+                    last = row.values[0]
+
+                diff = price - last
+                if count < window:
+                    queue.append(diff)
+                else:
+                    queue.append(diff)
+                    del queue[0]
+                    relative_strength = get_profit_average(queue, window) / get_loss_average(queue, window)
+                    rel_strength_index = 100.0 - (100.0/(1 + relative_strength))
+                    # print rel_strength_index, relative_strength
+                    data.loc[index, 'RSI'] = rel_strength_index
+
+                count += 1
+                last = price
+
+            data['RSI'] = (data['RSI']/50) - 1.0
             data['Y'] = (data[stock].shift(-5)/data[stock]) - 1.0
+
             del data['SMA']
             del data['STD']
             del data['HigherBand']
