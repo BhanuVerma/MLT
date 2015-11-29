@@ -90,7 +90,6 @@ def get_portfolio_stats(port_val, daily_rf=0, samples_per_year=252):
         std_daily_ret: standard deviation of daily returns
         sharpe_ratio: annualized Sharpe ratio
     """
-    # TODO: Your code here
 
     daily_ret = (port_val / port_val.shift(1)) - 1
     daily_ret.ix[0] = 0
