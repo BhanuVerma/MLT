@@ -397,11 +397,11 @@ def get_loss_average(data_list, window):
 def test_run():
     """Driver function."""
     # Define input parameters
-    stock_list = ['ML4T-399', 'IBM']
+    # stock_list = ['ML4T-399', 'IBM']
     k_size = 2
     bag_size = 20
     window_size = 20
-    # stock_list = ['IBM']
+    stock_list = ['IBM']
     for k in range(len(stock_list)):
         print stock_list[k]
         for j in range(2):
@@ -452,6 +452,11 @@ def test_run():
                 last = price
 
             data['RSI'] = (data['RSI']/50) - 1.0
+            if j == 0:
+                price_train = data[stock]
+            else:
+                price_test = data[stock]
+
             data['Y'] = (data[stock].shift(-5)/data[stock]) - 1.0
 
             del data['SMA']
@@ -459,9 +464,22 @@ def test_run():
             del data['HigherBand']
             del data['LowerBand']
             del data['DailyReturns']
+
             data = data.ix[20:len(data)-5]
+            if j == 0:
+                price_train = price_train.ix[20:len(price_train)-5]
+                price_train = price_train.as_matrix()
+            else:
+                price_test = price_test.ix[20:len(price_test)-5]
+                price_test = price_test.as_matrix()
+
             pd.set_option('display.max_rows', len(data))
+
             learner_data = data.ix[:, 1:]
+            if j == 0:
+                train_index = learner_data.index.values
+            else:
+                test_index = learner_data.index.values
 
             if j == 0:
                 train_x = learner_data.ix[:, 0:-1]
@@ -475,142 +493,250 @@ def test_run():
                 test_y = test_y.as_matrix()
 
         total = 2
-
+        learner_list = ['LinRegLearner', 'KNNLearner']
         for i in range(total):
             if i == 0:
-                print "LinRegLearner"
+                print learner_list[i]
                 learner = LinRegLearner()  # create a LinRegLearner
             else:
-                print "BagLearner"
+                print learner_list[i]
                 learner = BagLearner(learner=KNNLearner, kwargs={"k": k_size}, bags=bag_size, boost=False)  # create a BagLearner
 
             learner.addEvidence(train_x, train_y)  # train it
 
-            # evaluate in sample
-            predY = learner.query(train_x)  # get the predictions
-            rmse = math.sqrt(((train_y - predY) ** 2).sum()/train_y.shape[0])
+            pred_y = learner.query(train_x)  # get the predictions
+            rmse = math.sqrt(((train_y - pred_y) ** 2).sum()/train_y.shape[0])
+            scaled_y = price_train + pred_y * price_train
+            scaled_train_y = price_train + train_y * price_train
+            d = {'PredY': scaled_y, 'TrainY': scaled_train_y, stock_list[k]: price_train}
+            df_train = pd.DataFrame(data=d, index=train_index)
+            order_data = {'PredY': pred_y}
+            order_df = pd.DataFrame(data=order_data, index=train_index)
+
             print
             print "In sample results"
             print "RMSE: ", rmse
-            c = np.corrcoef(predY, y=train_y)
+            c = np.corrcoef(pred_y, y=train_y)
             print "corr: ", c[0, 1]
 
-            # # evaluate out of sample
-            predY = learner.query(test_x)  # get the predictions
-            rmse = math.sqrt(((test_y - predY) ** 2).sum()/test_y.shape[0])
+            plot.figure()
+            ax = plot.gca()
+            ax.set_title('InSample: ' + learner_list[i] + ' for ' + stock_list[k])
+            ax.set_xlabel('Date')
+            ax.set_ylabel('Predictions')
+            df_train['PredY'].plot(label='PredY', ax=ax, color='b')
+            df_train['TrainY'].plot(label='TrainY', ax=ax, color='g')
+            df_train[stock_list[k]].plot(label=stock_list[k], ax=ax, color='red')
+            ax.legend(loc='best')
+
+            count = 0
+            line_count = 0
+            short_flag = False
+            long_flag = False
+
+            data_array = [('Date', 'Symbol', 'Order', 'Shares')]
+
+            for index, row in order_df.iterrows():
+                current_val = order_df.loc[index, 'PredY']
+
+                if not short_flag and not long_flag:
+                    if current_val <= -0.01:
+                        # print "short entry"
+                        line_count += 1
+                        plot.axvline(index, color='red')
+                        short_flag = True
+                        data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'SELL', '100'))
+
+                    if current_val >= 0.01:
+                        # print "long entry"
+                        line_count += 1
+                        plot.axvline(index, color='green')
+                        long_flag = True
+                        data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'BUY', '100'))
+
+                if short_flag or long_flag:
+                    count += 1
+                    if short_flag:
+                        if count == 5:
+                            # exit for short entry
+                            count = 0
+                            line_count += 1
+                            plot.axvline(index, color='black')
+                            short_flag = False
+                            long_flag = False
+                            data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'BUY', '100'))
+                    if long_flag:
+                        if count == 5:
+                            # exit for long entry
+                            count = 0
+                            line_count += 1
+                            plot.axvline(index, color='black')
+                            short_flag = False
+                            long_flag = False
+                            data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'SELL', '100'))
+
+            plot.show()
+
+            with open('orders.csv', 'w') as fp:
+                data_writer = csv.writer(fp, delimiter=',')
+                data_writer.writerows(data_array)
+
+            orders_file = os.path.join("", "orders.csv")
+            start_val = 10000
+            # Process orders
+            start_date = '2008-01-01'
+            end_date = '2009-12-31'
+            portvals = compute_portvals(start_date, end_date, orders_file, start_val)
+            if isinstance(portvals, pd.DataFrame):
+                portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
+
+            # Get portfolio stats
+            cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
+
+            # Simulate a $SPX-only reference portfolio to get stats
+            prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
+            prices_SPY = prices_SPY[['SPY']]
+            portvals_SPY = get_portfolio_value(prices_SPY, [1.0])
+            cum_ret_SPY, avg_daily_ret_SPY, std_daily_ret_SPY, sharpe_ratio_SPY = get_portfolio_stats(portvals_SPY)
+
+            # Compare portfolio against $SPX
+            print "Data Range: {} to {}".format(start_date, end_date)
+            print
+            print "Sharpe Ratio of Fund: {}".format(sharpe_ratio)
+            print "Sharpe Ratio of SPY: {}".format(sharpe_ratio_SPY)
+            print
+            print "Cumulative Return of Fund: {}".format(cum_ret)
+            print "Cumulative Return of SPY: {}".format(cum_ret_SPY)
+            print
+            print "Standard Deviation of Fund: {}".format(std_daily_ret)
+            print "Standard Deviation of SPY: {}".format(std_daily_ret_SPY)
+            print
+            print "Average Daily Return of Fund: {}".format(avg_daily_ret)
+            print "Average Daily Return of SPY: {}".format(avg_daily_ret_SPY)
+            print
+            print "Final Portfolio Value: {}".format(portvals[-1])
+
+            # Plot computed daily portfolio value
+            df_temp = pd.concat([portvals, prices_SPY['SPY']], keys=['Portfolio', 'SPY'], axis=1)
+            plot_normalized_data(df_temp, title="InSample: " + learner_list[i] + ' - ' + stock_list[k])
+
+            # evaluate out of sample
+            pred_y = learner.query(test_x)  # get the predictions
+            rmse = math.sqrt(((test_y - pred_y) ** 2).sum()/test_y.shape[0])
+            scaled_y = price_test + pred_y * price_test
+            scaled_test_y = price_test + test_y * price_test
+            d = {'PredY': scaled_y, 'TestY': scaled_test_y, stock_list[k]: price_test}
+            df_test = pd.DataFrame(data=d, index=test_index)
+            order_data = {'PredY': pred_y}
+            order_df = pd.DataFrame(data=order_data, index=test_index)
+
             print
             print "Out of sample results"
             print "RMSE: ", rmse
-            c = np.corrcoef(predY, y=test_y)
+            c = np.corrcoef(pred_y, y=test_y)
             print "corr: ", c[0, 1]
             print
 
-    # plot.figure()
-    # ax = plot.gca()
-    # ax.set_title('Double Bollinger Bands')
-    # ax.set_xlabel('Date')
-    # ax.set_ylabel('Price')
-    # data['IBM'].plot(label='IBM', ax=ax, color='b')
-    # data['SMA'].plot(label='SMA', ax=ax, color='y')
-    # data['HigherBand'].plot(label='Bollinger Bands for 2 SD', ax=ax, color='cyan')
-    # data['LowerBand'].plot(label='', ax=ax, color='cyan')
-    # data['MiddleHigherBand'].plot(label='Bollinger Bands for 1 SD', ax=ax, color='magenta')
-    # data['MiddleLowerBand'].plot(label='', ax=ax, color='magenta')
-    # ax.legend(loc='best')
-    #
-    # count = 0
-    # line_count = 0
-    # short_flag = False
-    # long_flag = False
-    #
-    # data_array = [('Date', 'Symbol', 'Order', 'Shares')]
-    #
-    # for index, row in data.iterrows():
-    #     current_price = data.loc[index, 'IBM']
-    #     higher_2 = data.loc[index, 'HigherBand']
-    #     lower_2 = data.loc[index, 'LowerBand']
-    #     current_val = data.loc[index, 'PercentageMiddle']
-    #
-    #     if count == 0:
-    #         last = current_val
-    #
-    #     if not short_flag and not long_flag:
-    #         if last > -1.0 >= current_val:
-    #             # print "short entry"
-    #             line_count += 1
-    #             plot.axvline(index, color='red')
-    #             short_flag = True
-    #             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-    #
-    #         if last < 1.0 <= current_val:
-    #             # print "long entry"
-    #             line_count += 1
-    #             plot.axvline(index, color='green')
-    #             long_flag = True
-    #             data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-    #
-    #     if short_flag or long_flag:
-    #         if short_flag:
-    #             if current_price <= lower_2:
-    #                 # exit for short entry
-    #                 line_count += 1
-    #                 plot.axvline(index, color='black')
-    #                 short_flag = False
-    #                 long_flag = False
-    #                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'BUY', '100'))
-    #         if long_flag:
-    #             if current_price >= higher_2:
-    #                 # exit for long entry
-    #                 line_count += 1
-    #                 plot.axvline(index, color='black')
-    #                 short_flag = False
-    #                 long_flag = False
-    #                 data_array.append((str(index.strftime('%Y-%m-%d')), 'IBM', 'SELL', '100'))
-    #     count += 1
-    #     last = current_val
-    #
-    # with open('orders.csv', 'w') as fp:
-    #     data_writer = csv.writer(fp, delimiter=',')
-    #     data_writer.writerows(data_array)
-    #
-    # plot.show()
-    #
-    # orders_file = os.path.join("", "orders.csv")
-    # start_val = 10000
-    # # Process orders
-    # portvals = compute_portvals(start_date, end_date, orders_file, start_val)
-    # if isinstance(portvals, pd.DataFrame):
-    #     portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
-    #
-    # # Get portfolio stats
-    # cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
-    #
-    # # Simulate a $SPX-only reference portfolio to get stats
-    # prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
-    # prices_SPY = prices_SPY[['SPY']]
-    # portvals_SPY = get_portfolio_value(prices_SPY, [1.0])
-    # cum_ret_SPY, avg_daily_ret_SPY, std_daily_ret_SPY, sharpe_ratio_SPY = get_portfolio_stats(portvals_SPY)
-    #
-    # # Compare portfolio against $SPX
-    # print "Data Range: {} to {}".format(start_date, end_date)
-    # print
-    # print "Sharpe Ratio of Fund: {}".format(sharpe_ratio)
-    # print "Sharpe Ratio of SPY: {}".format(sharpe_ratio_SPY)
-    # print
-    # print "Cumulative Return of Fund: {}".format(cum_ret)
-    # print "Cumulative Return of SPY: {}".format(cum_ret_SPY)
-    # print
-    # print "Standard Deviation of Fund: {}".format(std_daily_ret)
-    # print "Standard Deviation of SPY: {}".format(std_daily_ret_SPY)
-    # print
-    # print "Average Daily Return of Fund: {}".format(avg_daily_ret)
-    # print "Average Daily Return of SPY: {}".format(avg_daily_ret_SPY)
-    # print
-    # print "Final Portfolio Value: {}".format(portvals[-1])
-    #
-    # # Plot computed daily portfolio value
-    # df_temp = pd.concat([portvals, prices_SPY['SPY']], keys=['Portfolio', 'SPY'], axis=1)
-    # plot_normalized_data(df_temp, title="Daily portfolio value and SPY")
+            plot.figure()
+            ax = plot.gca()
+            ax.set_title('OutSample: ' + learner_list[i] + ' for ' + stock_list[k])
+            ax.set_xlabel('Date')
+            ax.set_ylabel('Predictions')
+            df_test['PredY'].plot(label='PredY', ax=ax, color='b')
+            df_test['TestY'].plot(label='TestY', ax=ax, color='g')
+            df_test[stock_list[k]].plot(label=stock_list[k], ax=ax, color='red')
+            ax.legend(loc='best')
+
+            count = 0
+            line_count = 0
+            short_flag = False
+            long_flag = False
+
+            data_array = [('Date', 'Symbol', 'Order', 'Shares')]
+
+            for index, row in order_df.iterrows():
+                current_val = order_df.loc[index, 'PredY']
+
+                if not short_flag and not long_flag:
+                    if current_val <= -0.01:
+                        # print "short entry"
+                        line_count += 1
+                        plot.axvline(index, color='red')
+                        short_flag = True
+                        data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'SELL', '100'))
+
+                    if current_val >= 0.01:
+                        # print "long entry"
+                        line_count += 1
+                        plot.axvline(index, color='green')
+                        long_flag = True
+                        data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'BUY', '100'))
+
+                if short_flag or long_flag:
+                    count += 1
+                    if short_flag:
+                        if count == 5:
+                            # exit for short entry
+                            count = 0
+                            line_count += 1
+                            plot.axvline(index, color='black')
+                            short_flag = False
+                            long_flag = False
+                            data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'BUY', '100'))
+                    if long_flag:
+                        if count == 5:
+                            # exit for long entry
+                            count = 0
+                            line_count += 1
+                            plot.axvline(index, color='black')
+                            short_flag = False
+                            long_flag = False
+                            data_array.append((str(index.strftime('%Y-%m-%d')), stock_list[k], 'SELL', '100'))
+
+            plot.show()
+
+            with open('orders.csv', 'w') as fp:
+                data_writer = csv.writer(fp, delimiter=',')
+                data_writer.writerows(data_array)
+
+            orders_file = os.path.join("", "orders.csv")
+            start_val = 10000
+            # Process orders
+            start_date = '2010-01-01'
+            end_date = '2010-12-31'
+            portvals = compute_portvals(start_date, end_date, orders_file, start_val)
+            if isinstance(portvals, pd.DataFrame):
+                portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
+
+            # Get portfolio stats
+            cum_ret, avg_daily_ret, std_daily_ret, sharpe_ratio = get_portfolio_stats(portvals)
+
+            # Simulate a $SPX-only reference portfolio to get stats
+            prices_SPY = get_data(['SPY'], pd.date_range(start_date, end_date))
+            prices_SPY = prices_SPY[['SPY']]
+            portvals_SPY = get_portfolio_value(prices_SPY, [1.0])
+            cum_ret_SPY, avg_daily_ret_SPY, std_daily_ret_SPY, sharpe_ratio_SPY = get_portfolio_stats(portvals_SPY)
+
+            # Compare portfolio against $SPX
+            print "Data Range: {} to {}".format(start_date, end_date)
+            print
+            print "Sharpe Ratio of Fund: {}".format(sharpe_ratio)
+            print "Sharpe Ratio of SPY: {}".format(sharpe_ratio_SPY)
+            print
+            print "Cumulative Return of Fund: {}".format(cum_ret)
+            print "Cumulative Return of SPY: {}".format(cum_ret_SPY)
+            print
+            print "Standard Deviation of Fund: {}".format(std_daily_ret)
+            print "Standard Deviation of SPY: {}".format(std_daily_ret_SPY)
+            print
+            print "Average Daily Return of Fund: {}".format(avg_daily_ret)
+            print "Average Daily Return of SPY: {}".format(avg_daily_ret_SPY)
+            print
+            print "Final Portfolio Value: {}".format(portvals[-1])
+
+            # Plot computed daily portfolio value
+            df_temp = pd.concat([portvals, prices_SPY['SPY']], keys=['Portfolio', 'SPY'], axis=1)
+            plot_normalized_data(df_temp, title="OutSample: " + learner_list[i] + ' - ' + stock_list[k])
 
 
 if __name__ == "__main__":
