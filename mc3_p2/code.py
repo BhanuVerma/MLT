@@ -397,11 +397,8 @@ def get_loss_average(data_list, window):
 def test_run():
     """Driver function."""
     # Define input parameters
-    # stock_list = ['ML4T-399', 'IBM']
-    k_size = 2
-    bag_size = 20
+    stock_list = ['ML4T-399', 'IBM']
     window_size = 20
-    stock_list = ['IBM']
     for k in range(len(stock_list)):
         print stock_list[k]
         for j in range(2):
@@ -459,6 +456,7 @@ def test_run():
 
             data['Y'] = (data[stock].shift(-5)/data[stock]) - 1.0
 
+            # del data['Volatility']
             del data['SMA']
             del data['STD']
             del data['HigherBand']
@@ -474,7 +472,7 @@ def test_run():
                 price_test = price_test.as_matrix()
 
             pd.set_option('display.max_rows', len(data))
-
+            # print data
             learner_data = data.ix[:, 1:]
             if j == 0:
                 train_index = learner_data.index.values
@@ -492,15 +490,16 @@ def test_run():
                 test_x = test_x.as_matrix()
                 test_y = test_y.as_matrix()
 
-        total = 2
-        learner_list = ['LinRegLearner', 'KNNLearner']
+        total = 1
+        learner_list = ['KNNLearner']
         for i in range(total):
-            if i == 0:
-                print learner_list[i]
-                learner = LinRegLearner()  # create a LinRegLearner
-            else:
-                print learner_list[i]
-                learner = BagLearner(learner=KNNLearner, kwargs={"k": k_size}, bags=bag_size, boost=False)  # create a BagLearner
+            # if i == 0:
+            #     print learner_list[i]
+            #     learner = LinRegLearner()  # create a LinRegLearner
+            # else:
+            print learner_list[i]
+            learner = KNNLearner(k=3)
+            # learner = BagLearner(learner=KNNLearner, kwargs={"k": k_size}, bags=bag_size, boost=False)  # create a BagLearner
 
             learner.addEvidence(train_x, train_y)  # train it
 
