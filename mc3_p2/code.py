@@ -491,14 +491,14 @@ def test_run():
                 test_y = test_y.as_matrix()
 
         total = 1
-        learner_list = ['KNNLearner']
+        learner_list = ['LinRegLearner', 'KNNLearner']
         for i in range(total):
-            # if i == 0:
-            #     print learner_list[i]
-            #     learner = LinRegLearner()  # create a LinRegLearner
-            # else:
-            print learner_list[i]
-            learner = KNNLearner(k=3)
+            if i == 0:
+                print learner_list[i]
+                learner = LinRegLearner()  # create a LinRegLearner
+            else:
+                print learner_list[i]
+                learner = KNNLearner(k=3)
             # learner = BagLearner(learner=KNNLearner, kwargs={"k": k_size}, bags=bag_size, boost=False)  # create a BagLearner
 
             learner.addEvidence(train_x, train_y)  # train it
