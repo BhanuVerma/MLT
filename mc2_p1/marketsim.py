@@ -143,6 +143,7 @@ def compute_portvals(start_date, end_date, orders_file, start_val):
 
     # pd.set_option('display.max_rows', len(count_df['Sum']))
     # print count_df['Sum']
+    # count_df = count_df['Sum']
     return count_df
 
 
@@ -333,6 +334,7 @@ def test_run():
     start_val = 1000000
     # Process orders
     portvals = compute_portvals(start_date, end_date, orders_file, start_val)
+
     if isinstance(portvals, pd.DataFrame):
         portvals = portvals[portvals.columns[0]]  # if a DataFrame is returned select the first column to get a Series
 
