@@ -112,7 +112,8 @@ if __name__ == "__main__":
     learner = ql.QLearner(num_states=100, num_actions=4, rar=0.98, radr=0.9999, verbose=verbose)
 
     # each iteration involves one trip to the goal
-    for iteration in range(0, 10000):
+    steps_array = []
+    for iteration in range(0, 500):
         steps = 0
         data = originalmap.copy()
         robopos = startpos
@@ -134,9 +135,11 @@ if __name__ == "__main__":
             robopos = newpos  # update the location
             if verbose:
                 printmap(data)
-            if verbose:
-                time.sleep(1)
+            # if verbose:
+            #     time.sleep(1)
             steps += 1
 
-        print iteration, ",", steps
+        # print iteration, ",", steps
+        steps_array.append(steps)
+    print min(steps_array)
     printmap(data)
