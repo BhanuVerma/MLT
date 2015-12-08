@@ -11,13 +11,19 @@ class QLearner(object):
         self.q_table = np.random.uniform(low=-1.0, high=1.0, size=(num_states, num_actions))
         self.verbose = verbose
         self.num_actions = num_actions
+        self.num_states = num_states
         self.s = 0
         self.a = 0
-        self.alpha = 0.8
+        self.alpha = alpha
         self.gamma = gamma
         self.rar = rar
         self.radr = radr
+        self.dyna = dyna
         self.actions = []
+        self.t_c = np.ones((num_states, num_actions, num_states))*0.00001
+        self.t = np.ones((num_states, num_actions, num_states))*0.00001
+
+        self.r = np.zeros((num_states, num_actions))
 
         for i in range(num_actions):
             self.actions.append(i)
@@ -36,10 +42,12 @@ class QLearner(object):
         else:
             action = self.q_table[self.s, :].argmax()
 
+        self.a = action
         self.rar *= self.radr
 
         if self.verbose:
             print "s =", s, "a =", action
+
         return action
 
     def query(self, s_prime, r):
@@ -50,6 +58,7 @@ class QLearner(object):
         @returns: The selected action
         """
 
+        q_table = self.q_table
         number = np.random.random_sample()
         if number < self.rar:
             action = rand.choice(self.actions)
@@ -61,8 +70,31 @@ class QLearner(object):
         self.rar *= self.radr
         if self.verbose:
             print "s =", s_prime, "a =", action, "r =", r
+
+        a = self.a
+
+        # Dyna-Q
+        if self.dyna > 0:
+            self.t_c[self.s][a][s_prime] += 1
+
+            den = (self.t_c[self.s][a]).sum()
+
+            self.t[self.s][a][s_prime] = self.t_c[self.s][a][s_prime]/den
+            self.r[self.s][a] = (1-self.alpha)*(self.r[self.s][a]) + self.alpha*r
+
         self.s = s_prime
         self.a = action
+
+        # Dyna-Q
+        if self.dyna > 0:
+            for d in range(0, self.dyna):
+                ss = rand.randint(0, self.num_states-1)
+                aa = rand.randint(0, self.num_actions-1)
+                ss_prime = (self.t[ss][aa]).argmax()
+                rr = self.r[ss][aa]
+                aa_prime = (q_table[ss_prime]).argmax()
+
+                self.q_table[ss][aa] = (1 - self.alpha)*q_table[ss][aa] + self.alpha*(rr + self.gamma*q_table[ss_prime][aa_prime])
 
         return action
 

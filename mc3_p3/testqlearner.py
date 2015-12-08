@@ -109,11 +109,11 @@ if __name__ == "__main__":
     rand.seed(5)
 
     # initialize the learner
-    learner = ql.QLearner(num_states=100, num_actions=4, rar=0.98, radr=0.9999, verbose=verbose)
+    learner = ql.QLearner(num_states=100, num_actions=4, alpha=0.2, gamma=0.9, rar=0., radr=0.99, dyna=100, verbose=verbose)
 
     # each iteration involves one trip to the goal
     steps_array = []
-    for iteration in range(0, 500):
+    for iteration in range(0, 50):
         steps = 0
         data = originalmap.copy()
         robopos = startpos
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             #     time.sleep(1)
             steps += 1
 
-        # print iteration, ",", steps
+        print iteration, ",", steps
         steps_array.append(steps)
     print min(steps_array)
     printmap(data)
