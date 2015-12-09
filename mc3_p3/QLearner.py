@@ -1,5 +1,7 @@
 """
 Template for implementing QLearner  (c) 2015 Tucker Balch
+_author_ = Bhanu Verma
+GTid - 903151012
 """
 
 import numpy as np
