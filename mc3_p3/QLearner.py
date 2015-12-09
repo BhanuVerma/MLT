@@ -80,9 +80,7 @@ class QLearner(object):
         # check for dyna and build T & R
         if self.dyna > 0:
             self.t_c[self.s][a_temp][s_prime] += 1
-
             total_count = (self.t_c[self.s][a_temp]).sum()
-
             self.t[self.s][a_temp][s_prime] = self.t_c[self.s][a_temp][s_prime]/total_count
             self.r[self.s][a_temp] = (1 - alpha)*(self.r[self.s][a_temp]) + alpha*r
 
