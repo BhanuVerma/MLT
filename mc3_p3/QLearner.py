@@ -64,37 +64,39 @@ class QLearner(object):
             action = rand.choice(self.actions)
         else:
             action = self.q_table[s_prime, :].argmax()
+
         alpha = self.alpha
         gamma = self.gamma
+
         self.q_table[self.s, self.a] = (1 - alpha) * self.q_table[self.s, self.a] + alpha * (r + gamma * self.q_table[s_prime, :].max())
         self.rar *= self.radr
         if self.verbose:
             print "s =", s_prime, "a =", action, "r =", r
 
-        a = self.a
+        a_temp = self.a
 
-        # Dyna-Q
+        # check for dyna and build T & R
         if self.dyna > 0:
-            self.t_c[self.s][a][s_prime] += 1
+            self.t_c[self.s][a_temp][s_prime] += 1
 
-            den = (self.t_c[self.s][a]).sum()
+            total_count = (self.t_c[self.s][a_temp]).sum()
 
-            self.t[self.s][a][s_prime] = self.t_c[self.s][a][s_prime]/den
-            self.r[self.s][a] = (1-self.alpha)*(self.r[self.s][a]) + self.alpha*r
+            self.t[self.s][a_temp][s_prime] = self.t_c[self.s][a_temp][s_prime]/total_count
+            self.r[self.s][a_temp] = (1 - alpha)*(self.r[self.s][a_temp]) + alpha*r
 
         self.s = s_prime
         self.a = action
 
-        # Dyna-Q
+        # Start Hallucinations
         if self.dyna > 0:
             for d in range(0, self.dyna):
-                ss = rand.randint(0, self.num_states-1)
-                aa = rand.randint(0, self.num_actions-1)
-                ss_prime = (self.t[ss][aa]).argmax()
-                rr = self.r[ss][aa]
-                aa_prime = (q_table[ss_prime]).argmax()
+                s_temp = rand.randint(0, self.num_states-1)
+                a_temp = rand.randint(0, self.num_actions-1)
+                s_temp_prime = (self.t[s_temp][a_temp]).argmax()
+                r_temp = self.r[s_temp][a_temp]
+                aa_prime = q_table[s_temp_prime, :].argmax()
 
-                self.q_table[ss][aa] = (1 - self.alpha)*q_table[ss][aa] + self.alpha*(rr + self.gamma*q_table[ss_prime][aa_prime])
+                self.q_table[s_temp][a_temp] = (1 - alpha)*q_table[s_temp][a_temp] + alpha*(r_temp + gamma*q_table[s_temp_prime][aa_prime])
 
         return action
 

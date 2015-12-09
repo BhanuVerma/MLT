@@ -110,6 +110,7 @@ if __name__ == "__main__":
 
     # initialize the learner
     learner = ql.QLearner(num_states=100, num_actions=4, alpha=0.2, gamma=0.9, rar=0.98, radr=0.999, dyna=0, verbose=verbose)
+    # learner = ql.QLearner(num_states=100, num_actions=4, alpha=0.2, gamma=0.9, rar=0.5, radr=0.99, dyna=100, verbose=verbose)
 
     # each iteration involves one trip to the goal
     steps_array = []
