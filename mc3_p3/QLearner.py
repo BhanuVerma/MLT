@@ -89,7 +89,7 @@ class QLearner(object):
 
         # Start Hallucinations
         if self.dyna > 0:
-            for d in range(0, self.dyna):
+            for count in range(0, self.dyna):
                 s_temp = rand.randint(0, self.num_states-1)
                 a_temp = rand.randint(0, self.num_actions-1)
                 s_temp_prime = (self.t[s_temp][a_temp]).argmax()
